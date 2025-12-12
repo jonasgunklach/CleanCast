@@ -17,6 +17,21 @@ class AudioManager {
     // Persistence Key
     private let lastPlayedKey = "lastPlayedEpisodeURL"
     
+    private init() {
+        configureAudioSession()
+    }
+    
+    private func configureAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .spokenAudio, options: [])
+            try session.setActive(true)
+            print("AudioManager: Audio session configured successfully")
+        } catch {
+            print("AudioManager: Failed to configure audio session: \(error)")
+        }
+    }
+    
     func play(episode: Episode) {
         if currentEpisode?.id == episode.id {
             if !isPlaying {
@@ -123,47 +138,46 @@ class AudioManager {
     func restoreSession(context: ModelContext) {
         guard let urlString = UserDefaults.standard.string(forKey: lastPlayedKey) else { return }
         
-        do {
-            var descriptor = FetchDescriptor<Episode>(
-                predicate: #Predicate { $0.url == urlString }
-            )
-            descriptor.fetchLimit = 1
-            
-            if let episode = try context.fetch(descriptor).first {
-                print("AudioManager: Restoring session for \(episode.title)")
-                self.currentEpisode = episode
-                self.currentTime = episode.progress
-                self.duration = episode.duration
-                self.isPlaying = false
+        Task { @MainActor in
+            do {
+                var descriptor = FetchDescriptor<Episode>(
+                    predicate: #Predicate { $0.url == urlString }
+                )
+                descriptor.fetchLimit = 1
                 
-                // Do NOT auto-play. Just prepare the UI.
-                // Optionally prepare the player item in paused state:
-                 // Check for local download first
-                 let url: URL?
-                 if episode.isDownloaded, let path = episode.localFilePath {
-                      if FileManager.default.fileExists(atPath: path) {
-                          url = URL(fileURLWithPath: path)
-                      } else { url = URL(string: episode.url) }
-                 } else {
-                      url = URL(string: episode.url)
-                 }
-                 
-                 if let validUrl = url {
-                     let playerItem = AVPlayerItem(url: validUrl)
-                     player.replaceCurrentItem(with: playerItem)
-                     
-                     // Seek to saved position
-                     if episode.progress > 0 {
-                         let cmTime = CMTime(seconds: episode.progress, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-                         player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
-                     }
-                     
-                     // Set up time observer so slider works even when paused
-                     setupTimeObserver()
-                 }
+                if let episode = try context.fetch(descriptor).first {
+                    print("AudioManager: Restoring session for \(episode.title)")
+                    self.currentEpisode = episode
+                    self.currentTime = episode.progress
+                    self.duration = episode.duration
+                    self.isPlaying = false
+                    
+                    // Prepare player asynchronously to avoid blocking UI startup
+                    let url: URL?
+                    if episode.isDownloaded, let path = episode.localFilePath, FileManager.default.fileExists(atPath: path) {
+                         url = URL(fileURLWithPath: path)
+                    } else {
+                         url = URL(string: episode.url)
+                    }
+                    
+                    if let validUrl = url {
+                        let playerItem = AVPlayerItem(url: validUrl)
+                        self.player.replaceCurrentItem(with: playerItem)
+                        
+                        // Seek to saved position with high tolerance for performance (snap to nearest keyframe)
+                        if episode.progress > 0 {
+                            let cmTime = CMTime(seconds: episode.progress, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+                            // Use positiveInfinity tolerance for fastest seek (no decoding required)
+                            self.player.seek(to: cmTime, toleranceBefore: .positiveInfinity, toleranceAfter: .positiveInfinity)
+                        }
+                        
+                        // Set up time observer so slider works even when paused
+                        self.setupTimeObserver()
+                    }
+                }
+            } catch {
+                print("AudioManager: Failed to restore session: \(error)")
             }
-        } catch {
-            print("AudioManager: Failed to restore session: \(error)")
         }
     }
     
