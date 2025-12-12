@@ -140,11 +140,11 @@ struct HomeEpisodeCard: View {
                     image.resizable()
                         .aspectRatio(contentMode: .fit)
                         .cornerRadius(8)
-                        .shadow(radius: 10)
+                        //.shadow(radius: 10)
                 } placeholder: {
                     ProgressView()
                 }
-                .frame(width: 180, height: 180)
+                .frame(width: 220, height: 220)
                 .padding(.bottom, 60) // Shift up slightly to make room for info
             }
             
