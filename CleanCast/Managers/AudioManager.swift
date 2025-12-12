@@ -62,12 +62,11 @@ class AudioManager {
         
         // Restore progress if needed (though seek checks current time)
         if episode.progress > 0 && episode.progress < episode.duration * 0.95 {
-             let cmTime = CMTime(seconds: episode.progress, preferredTimescale: 1)
-             player.seek(to: cmTime)
+             let cmTime = CMTime(seconds: episode.progress, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+             player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
         }
 
         player.play()
-        
         setupTimeObserver()
     }
     
@@ -90,9 +89,34 @@ class AudioManager {
         }
     }
     
+    private var isSeeking: Bool = false
+    
     func seek(to time: TimeInterval) {
-        let cmTime = CMTime(seconds: time, preferredTimescale: 1)
-        player.seek(to: cmTime)
+        // Prevent multiple simultaneous seeks
+        guard !isSeeking else { return }
+        
+        // Clamp time to valid range
+        let clampedTime = max(0, min(time, duration > 0 ? duration : time))
+        
+        // Skip seek if already very close to target (prevents unnecessary seeks)
+        if abs(clampedTime - currentTime) < 0.2 {
+            return
+        }
+        
+        isSeeking = true
+        currentTime = clampedTime // Update immediately for UI responsiveness
+        
+        let cmTime = CMTime(seconds: clampedTime, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        // Use small tolerance for smoother seeking (zero tolerance can cause audio glitches)
+        player.seek(to: cmTime, toleranceBefore: CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC)), 
+                    toleranceAfter: CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))) { [weak self] finished in
+            DispatchQueue.main.async {
+                self?.isSeeking = false
+                if finished {
+                    // Let time observer take over from here
+                }
+            }
+        }
     }
     
     // Resume session from disk
@@ -127,8 +151,15 @@ class AudioManager {
                  if let validUrl = url {
                      let playerItem = AVPlayerItem(url: validUrl)
                      player.replaceCurrentItem(with: playerItem)
-                     let cmTime = CMTime(seconds: episode.progress, preferredTimescale: 1)
-                     player.seek(to: cmTime)
+                     
+                     // Seek to saved position
+                     if episode.progress > 0 {
+                         let cmTime = CMTime(seconds: episode.progress, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+                         player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                     }
+                     
+                     // Set up time observer so slider works even when paused
+                     setupTimeObserver()
                  }
             }
         } catch {
@@ -136,30 +167,48 @@ class AudioManager {
         }
     }
     
+    private var lastModelUpdateTime: TimeInterval = 0
+    private let modelUpdateInterval: TimeInterval = 5.0 // Update model every 5 seconds
+    
     private func setupTimeObserver() {
         if let observer = timeObserver {
             player.removeTimeObserver(observer)
             timeObserver = nil
         }
         
+        // Use reasonable interval to avoid audio system overload
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            guard let self = self else { return }
-            self.currentTime = time.seconds
-            if let duration = self.player.currentItem?.duration.seconds, !duration.isNaN {
-                self.duration = duration
+            guard let self = self, !self.isSeeking else { return }
+            
+            let newTime = time.seconds
+            guard !newTime.isNaN && !newTime.isInfinite && newTime >= 0 else { return }
+            
+            self.currentTime = newTime
+            
+            // Update duration if available and valid (only check occasionally)
+            if let itemDuration = self.player.currentItem?.duration.seconds,
+               !itemDuration.isNaN && !itemDuration.isInfinite && itemDuration > 0,
+               abs(self.duration - itemDuration) > 0.5 {
+                self.duration = itemDuration
+            }
+            
+            // Only update model state periodically to avoid performance issues
+            let timeSinceLastUpdate = abs(newTime - self.lastModelUpdateTime)
+            if timeSinceLastUpdate >= self.modelUpdateInterval, let episode = self.currentEpisode {
+                self.lastModelUpdateTime = newTime
+                episode.progress = newTime
                 
-                // Update Model state
-                if let episode = self.currentEpisode {
-                    episode.progress = self.currentTime
-                    episode.duration = self.duration // Update duration from actual audio file if valid
-                    
-                    // Mark as in-progress or played
-                    if self.currentTime >= self.duration * 0.95 {
-                         episode.playStateRaw = 2 // Played
-                    } else {
-                         episode.playStateRaw = 1 // In Progress
-                    }
+                // Update duration if it changed significantly
+                if abs(episode.duration - self.duration) > 1.0 {
+                    episode.duration = self.duration
+                }
+                
+                // Mark as in-progress or played
+                if self.duration > 0 && newTime >= self.duration * 0.95 {
+                    episode.playStateRaw = 2 // Played
+                } else if newTime > 0 {
+                    episode.playStateRaw = 1 // In Progress
                 }
             }
         }

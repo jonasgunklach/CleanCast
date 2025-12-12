@@ -2,20 +2,19 @@ import SwiftUI
 
 struct FullPlayerView: View {
     @Environment(AudioManager.self) private var audioManager
-    @Environment(\.dismiss) var dismiss // In case we use sheet, but here we use overlay
+    @Environment(\.dismiss) var dismiss
     @State private var artworkColors: ArtworkColors?
     
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 30) {
                 // Drag Handle
-                
-                Spacer()
-                
                 Capsule()
                     .fill(Color.white.opacity(0.3))
                     .frame(width: 60, height: 5)
-                    .padding(.top, 10)
+                    .padding(.top, 20)
+                
+                Spacer()
                 
                 // Artwork
                 if let url = audioManager.currentEpisode?.podcast?.imageURL {
@@ -50,12 +49,25 @@ struct FullPlayerView: View {
                 
                 // Progress
                 VStack(spacing: 8) {
-                    Slider(value: Binding(get: {
-                        audioManager.currentTime
-                    }, set: { newValue in
-                        audioManager.seek(to: newValue)
-                    }), in: 0...(audioManager.duration > 0 ? audioManager.duration : 1))
-                    .tint(artworkColors?.accent ?? .white)
+                    ZStack {
+                        CustomSliderView(
+                            value: Binding(
+                                get: { audioManager.currentTime },
+                                set: { _ in }
+                            ),
+                            range: 0...(audioManager.duration > 0 ? audioManager.duration : 1),
+                            accentColor: artworkColors?.accent ?? .white,
+                            onDragChanged: { _ in
+                                // Visual update only, no seek during drag
+                            },
+                            onDragEnded: { newValue in
+                                // Seek only when drag ends
+                                audioManager.seek(to: newValue)
+                            }
+                        )
+                        .padding(.horizontal, 8)
+                    }
+                    .frame(height: 50) // Extra space for indicator
                     
                     HStack {
                         Text(format(audioManager.currentTime))
@@ -98,9 +110,14 @@ struct FullPlayerView: View {
                 
                 Spacer()
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(backgroundView)
+            .ignoresSafeArea(edges: .all)
         }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(.clear)
+        .interactiveDismissDisabled(false)
         .onAppear {
             updateColors()
         }

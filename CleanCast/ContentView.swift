@@ -14,7 +14,6 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showFullPlayer = false
     @State private var searchText: String = ""
-    @State private var dragOffset: CGFloat = 0
     
     var body: some View {
         TabView {
@@ -36,44 +35,18 @@ struct ContentView: View {
             }
         }
         .id("MainTabs")
-        .id("MainTabs")
         // Mini player accessory
         .tabViewBottomAccessory {
             MiniPlayerView()
                 .opacity(showFullPlayer ? 0 : 1)
                 .onTapGesture {
                     if audioManager.currentEpisode != nil {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            showFullPlayer = true
-                        }
+                        showFullPlayer = true
                     }
                 }
         }
-        .overlay {
-            if showFullPlayer {
-                // Fullscreen panel
-                FullPlayerView()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
-                    // Fullscreen ignoring safe areas
-                    .edgesIgnoringSafeArea(.all)
-                    .offset(y: max(dragOffset, 0))
-                    .transition(.move(edge: .bottom))
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                dragOffset = value.translation.height
-                            }
-                            .onEnded { value in
-                                withAnimation {
-                                    if value.translation.height > 150 {
-                                        showFullPlayer = false
-                                    }
-                                    dragOffset = 0
-                                }
-                            }
-                    )
-            }
+        .sheet(isPresented: $showFullPlayer) {
+            FullPlayerView()
         }
         .tint(currentAccentColor)
         .accentColor(currentAccentColor)
