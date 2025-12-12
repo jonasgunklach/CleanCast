@@ -130,89 +130,151 @@ struct HomeView: View {
 
 struct HomeEpisodeCard: View {
     let episode: Episode
+    @State private var artworkColors: ArtworkColors = .default
+    @State private var hasExtractedColors = false
+    @Environment(AudioManager.self) private var audioManager
     
+    // Check if *this* episode is currently playing/active
+    private var isCurrentEpisode: Bool {
+        audioManager.currentEpisode?.id == episode.id
+    }
+    
+    private var isPlaying: Bool {
+        isCurrentEpisode && audioManager.isPlaying
+    }
+    
+    private var textColor: Color {
+        // Use white text for contrast with dominant color background
+        .white
+    }
+
     var body: some View {
-        ZStack {
-            // Background: Dominant Color or Blurred Image
-            if let hex = episode.podcast?.backgroundColorHex, let color = Color(hex: hex) {
-                color
-            } else if let url = episode.podcast?.imageURL {
-                AsyncImage(url: url) { image in
-                    image.resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .blur(radius: 60)
-                } placeholder: {
-                    Color.gray.opacity(0.3)
-                }
-            } else {
-                Color.gray.opacity(0.3)
-            }
-            
-            // Background Dim content
-            Color.black.opacity(0.2)
-            
-            // Centered Image
+        VStack(spacing: 0) {
+            // Top 2/3: Full artwork image
             if let url = episode.podcast?.imageURL {
                 AsyncImage(url: url) { image in
                     image.resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .cornerRadius(8)
-                        //.shadow(radius: 10)
+                        .aspectRatio(contentMode: .fill)
                 } placeholder: {
-                    ProgressView()
+                    Color.gray.opacity(0.3)
+                        .overlay {
+                            ProgressView()
+                        }
                 }
-                .frame(width: 220, height: 220)
-                .padding(.bottom, 60) // Shift up slightly to make room for info
+                .frame(height: 240)
+                .clipped()
+            } else {
+                Color.gray.opacity(0.3)
+                    .frame(height: 240)
+                    .overlay {
+                        Image(systemName: "music.note")
+                            .foregroundColor(.gray)
+                            .font(.system(size: 60))
+                    }
             }
             
-            // Info Badge Overlay
-            VStack(alignment: .leading, spacing: 8) {
-                Spacer()
+            // Bottom 1/3: Dominant color background with episode info
+            VStack(alignment: .leading, spacing: 12) {
+                // Episode title
+                Text(episode.title)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .lineLimit(2)
+                    .foregroundColor(textColor)
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(episode.title)
-                        .font(.headline)
-                        .lineLimit(2)
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.leading)
-                    
-                    HStack {
-                         Text(episode.releaseDate.formatted(date: .abbreviated, time: .omitted))
-                        
-                        Spacer()
-                        
-                        // Status
-                        if episode.playStateRaw == 2 {
-                            Text("Played")
-                                .bold()
-                        } else if episode.duration > 0 && episode.progress > 0 {
-                             let left = max(0, episode.duration - episode.progress)
-                             Text("\(format(left)) left")
-                                .bold()
-                        } else {
-                             Text("Unplayed")
-                                .bold()
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.accentColor)
-                                .clipShape(Capsule())
-                        }
+                // Info Pills Row
+                HStack(spacing: 8) {
+                    // Podcast name pill
+                    if let podcastTitle = episode.podcast?.title {
+                        Text(podcastTitle)
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundColor(textColor)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.25))
+                            )
+                            .lineLimit(1)
                     }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    
+                    // Duration pill
+                    if episode.duration > 0 {
+                        Text(format(episode.duration))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundColor(textColor)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.25))
+                            )
+                    }
+                    
+                    Spacer()
+                    
+                    // Play/Pause Play button pill
+                    Button {
+                        if isPlaying {
+                            audioManager.pause()
+                        } else if isCurrentEpisode {
+                             audioManager.play(episode: episode)
+                        } else {
+                             audioManager.play(episode: episode)
+                        }
+                    } label: {
+                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(textColor)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.3))
+                            )
+                    }
                 }
-                .padding(16)
-                .background(.ultraThinMaterial)
             }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 130)
+            .background(artworkColors.primary) // Dynamic background
         }
-        .frame(width: 280, height: 380)
+        .frame(width: 300)
         .clipShape(RoundedRectangle(cornerRadius: 24))
-        .shadow(color: .black.opacity(0.15), radius: 15, x: 0, y: 8)
-        .overlay(alignment: .center) {
-            // Optional: Play button in center of image?
-            // User didn't explicitly ask for play button "in center", but keeping interactions simple.
-            // The card itself is tapped to play in HomeView.
+        .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 10)
+        .onAppear {
+            extractColors()
+        }
+        .task(id: episode.id) {
+             extractColors()
+        }
+    }
+    
+    private func extractColors() {
+        guard !hasExtractedColors, let url = episode.podcast?.imageURL else { return }
+        
+        // Check if podcast already has cached colors
+        if let hex = episode.podcast?.backgroundColorHex, let bg = Color(hex: hex) {
+             // We can reconstruct ArtworkColors if we strictly only need primary
+             // But let's try to get the full object if possible or just use the background
+             // For now, let's just use the extractor to be consistent or use cached values if extraction fails?
+             // To be robust, let's extract.
+        }
+        
+        Task {
+            // Check cache logic or file system? For now simple URL fetch
+            if let (data, _) = try? await URLSession.shared.data(from: url),
+               let uiImage = UIImage(data: data) {
+                
+                let colors = ArtworkColorExtractor.shared.extractColors(from: uiImage)
+                
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        self.artworkColors = colors
+                        self.hasExtractedColors = true
+                    }
+                }
+            }
         }
     }
     
