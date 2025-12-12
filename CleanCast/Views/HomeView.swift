@@ -55,17 +55,34 @@ struct HomeView: View {
                                     .font(.title2.bold())
                                     .padding(.horizontal)
                                 
-                                ForEach(unfinishedEpisodes.prefix(10)) { episode in
-                                    HomeEpisodeRow(episode: episode)
-                                        .padding(.horizontal)
-                                        .onTapGesture {
-                                            audioManager.play(episode: episode)
-                                        }
-                                    
-                                    if episode.id != unfinishedEpisodes.prefix(10).last?.id {
-                                        Divider().padding(.leading)
+                                List {
+                                    ForEach(Array(unfinishedEpisodes.prefix(10))) { episode in
+                                        HomeEpisodeRow(episode: episode)
+                                            .onTapGesture {
+                                                audioManager.play(episode: episode)
+                                            }
+                                            .listRowInsets(EdgeInsets())
+                                            .listRowSeparator(.hidden)
+                                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                                Button(role: .destructive) {
+                                                    episode.playStateRaw = 2 // Mark as played
+                                                } label: {
+                                                    Label("Played", systemImage: "checkmark")
+                                                }
+                                            }
+                                            .swipeActions(edge: .leading) {
+                                                Button {
+                                                    episode.playStateRaw = 0 // Mark as unplayed
+                                                } label: {
+                                                    Label("Unplayed", systemImage: "circle")
+                                                }
+                                                .tint(.blue)
+                                            }
                                     }
                                 }
+                                .listStyle(.plain)
+                                .frame(height: CGFloat(min(unfinishedEpisodes.prefix(10).count, 10)) * 70)
+                                .scrollDisabled(true)
                             }
                         }
                     }
@@ -270,6 +287,8 @@ struct HomeEpisodeRow: View {
                     .clipShape(Capsule())
             }
         }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
         .contentShape(Rectangle())
     }
     

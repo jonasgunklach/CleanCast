@@ -10,32 +10,32 @@ struct AllEpisodesView: View {
     var body: some View {
         List {
             ForEach(episodes) { episode in
-                EpisodeRow(episode: episode, artworkColors: artworkColors)
-                    .swipeActions(edge: .trailing) {
-                        Button {
-                            togglePlayed(episode)
-                        } label: {
-                            Label(episode.playStateRaw == 2 ? "Mark Unplayed" : "Mark Played",
-                                  systemImage: episode.playStateRaw == 2 ? "circle" : "checkmark.circle")
-                        }
-                        .tint(episode.playStateRaw == 2 ? .gray : .green)
+                Button {
+                    play(episode)
+                } label: {
+                    EpisodeRow(episode: episode, artworkColors: artworkColors)
+                }
+                .swipeActions(edge: .trailing) {
+                    Button {
+                        togglePlayed(episode)
+                    } label: {
+                        Label(episode.playStateRaw == 2 ? "Mark Unplayed" : "Mark Played",
+                              systemImage: episode.playStateRaw == 2 ? "circle" : "checkmark.circle")
                     }
-                    .swipeActions(edge: .leading) {
-                        Button {
-                            toggleDownload(episode)
-                        } label: {
-                            Label(episode.isDownloaded ? "Remove" : "Download",
-                                  systemImage: episode.isDownloaded ? "trash" : "arrow.down.circle")
-                        }
-                        .tint(episode.isDownloaded ? .red : artworkColors.primary)
+                    .tint(episode.playStateRaw == 2 ? .gray : .green)
+                }
+                .swipeActions(edge: .leading) {
+                    Button {
+                        toggleDownload(episode)
+                    } label: {
+                        Label(episode.isDownloaded ? "Remove" : "Download",
+                              systemImage: episode.isDownloaded ? "trash" : "arrow.down.circle")
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        play(episode)
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+                    .tint(episode.isDownloaded ? .red : artworkColors.primary)
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
             }
         }
         .listStyle(.plain)

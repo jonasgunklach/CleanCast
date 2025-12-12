@@ -43,8 +43,8 @@ struct LibraryView: View {
                     }
                 }
                 .padding()
+                .buttonStyle(.plain) // Ensure text colors are not overridden by link tint
             }
-            .buttonStyle(.plain) // Ensure text colors are not overridden by link tint
             .navigationTitle("Library")
         }
     }

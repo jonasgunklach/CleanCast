@@ -47,6 +47,8 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showFullPlayer) {
             FullPlayerView()
+                .ignoresSafeArea(edges: .all)
+                .presentationDragIndicator(.hidden)
         }
         .tint(currentAccentColor)
         .accentColor(currentAccentColor)
@@ -56,17 +58,6 @@ struct ContentView: View {
     }
     
     private var currentAccentColor: Color {
-        // Attempt to extract accent from current episode's podcast
-        // This requires 'artworkColors' to be accessible or stored on Podcast.
-        // We have 'accentColorHex' in Podcast model. We should use it.
-        // Or if we implemented dynamic extraction on PodcastDetail without saving to model, we rely on the View.
-        // BUT the user asked for "playing episode" accent. `ArtworkColorExtractor` runs in DetailView.
-        // Does Podcast model have the color? 
-        // We need to verify if we save colors to Podcast. 
-        // In PodcastDetailView.extractArtworkColors, we had a comment `// podcast.backgroundColorHex = ...` but commented out.
-        // We MUST save it to model to use it globally.
-        // For now, I'll default to blue unless I see a way to get it.
-        // Wait, the user wants it. I should update PodcastDetail to SAVE the color.
         
         if let hex = audioManager.currentEpisode?.podcast?.accentColorHex {
              return ColorManager.shared.color(from: hex)

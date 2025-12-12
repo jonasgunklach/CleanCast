@@ -42,29 +42,70 @@ struct PodcastDetailView: View {
     
     var body: some View {
         List {
-            headerSection
+            Section {
+                headerSection
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                
+                if !displayedEpisodes.isEmpty {
+                    episodesHeaderSection
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.top, 10)
+                }
+            }
+            .listSectionSeparator(.hidden)
             
             if !displayedEpisodes.isEmpty {
-                episodesHeaderSection
-                episodesListSection
+                ForEach(displayedEpisodes.prefix(25)) { episode in
+                     Button {
+                         play(episode)
+                     } label: {
+                         EpisodeRow(episode: episode, artworkColors: artworkColors)
+                             .contentShape(Rectangle())
+                     }
+                     .swipeActions(edge: .trailing) {
+                         Button {
+                             togglePlayed(episode)
+                         } label: {
+                             Label(episode.playStateRaw == 2 ? "Mark Unplayed" : "Mark Played",
+                                   systemImage: episode.playStateRaw == 2 ? "circle" : "checkmark.circle")
+                         }
+                         .tint(episode.playStateRaw == 2 ? .gray : .green)
+                     }
+                     .swipeActions(edge: .leading) {
+                         Button {
+                             toggleDownload(episode)
+                         } label: {
+                             Label(episode.isDownloaded ? "Remove" : "Download",
+                                   systemImage: episode.isDownloaded ? "trash" : "arrow.down.circle")
+                         }
+                         .tint(episode.isDownloaded ? .red : artworkColors.primary)
+                     }
+                     .listRowSeparator(.visible)
+                     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                     .listRowBackground(Color.clear)
+                }
                 
                 if displayedEpisodes.count > 25 {
-                    Section {
-                        NavigationLink {
-                            AllEpisodesView(episodes: displayedEpisodes, artworkColors: artworkColors)
-                        } label: {
-                            Text("See All Episodes")
-                                .font(.headline)
-                                .foregroundStyle(artworkColors.primary)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .padding()
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                    NavigationLink {
+                        AllEpisodesView(episodes: displayedEpisodes, artworkColors: artworkColors)
+                    } label: {
+                        Text("See All Episodes")
+                            .font(.headline)
+                            .foregroundStyle(artworkColors.primary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
                     }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
             } else {
                  ContentUnavailableView("No Episodes", systemImage: "microphone", description: Text("Loading episodes..."))
+                     .frame(maxWidth: .infinity)
+                     .padding(.top, 40)
                      .listRowSeparator(.hidden)
                      .listRowBackground(Color.clear)
             }
@@ -72,7 +113,6 @@ struct PodcastDetailView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(backgroundColor.ignoresSafeArea())
-        .environment(\.defaultMinListRowHeight, 0)
         .onAppear {
             resolvePodcast()
             if podcast.modelContext == nil {
@@ -142,72 +182,29 @@ struct PodcastDetailView: View {
     // MARK: - Sections
     
     private var headerSection: some View {
-        Section {
-            VStack(spacing: 16) {
-                artworkView
-                podcastInfoView
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 20)
-            .padding(.bottom, 24)
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
+        VStack(spacing: 16) {
+            artworkView
+            podcastInfoView
         }
+        .padding(.horizontal, 16)
+        .padding(.top, 20)
+        .padding(.bottom, 24)
     }
     
     private var episodesHeaderSection: some View {
-        Section {
-            EmptyView()
-        } header: {
-            HStack {
-                Text("Latest Episodes")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-                
-                Spacer()
-                
-                Text("\(displayedEpisodes.count)")
-                    .font(.system(size: 15, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .listRowInsets(EdgeInsets())
+        HStack {
+            Text("Latest Episodes")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+            
+            Spacer()
+            
+            Text("\(displayedEpisodes.count)")
+                .font(.system(size: 15, design: .rounded))
+                .foregroundStyle(.secondary)
         }
-    }
-    
-    private var episodesListSection: some View {
-        Section {
-            ForEach(displayedEpisodes.prefix(25)) { episode in
-                EpisodeRow(episode: episode, artworkColors: artworkColors)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        play(episode)
-                    }
-                    .swipeActions(edge: .trailing) {
-                        Button {
-                            togglePlayed(episode)
-                        } label: {
-                            Label(episode.playStateRaw == 2 ? "Mark Unplayed" : "Mark Played",
-                                  systemImage: episode.playStateRaw == 2 ? "circle" : "checkmark.circle")
-                        }
-                        .tint(episode.playStateRaw == 2 ? .gray : .green)
-                    }
-                    .swipeActions(edge: .leading) {
-                        Button {
-                            toggleDownload(episode)
-                        } label: {
-                            Label(episode.isDownloaded ? "Remove" : "Download",
-                                  systemImage: episode.isDownloaded ? "trash" : "arrow.down.circle")
-                        }
-                        .tint(episode.isDownloaded ? .red : artworkColors.primary)
-                    }
-            }
-        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
     
     // MARK: - Components
@@ -380,77 +377,3 @@ struct PodcastDetailView: View {
     }
 }
 
-// Updated EpisodeRow to match design
-struct EpisodeRow: View {
-    let episode: Episode
-    let artworkColors: ArtworkColors
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(episode.title)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                    
-                    Text(episode.releaseDate.formatted(date: .abbreviated, time: .omitted))
-                        .font(.system(size: 13, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-                
-                Spacer()
-                
-                // Duration or Progress
-                VStack(alignment: .trailing) {
-                    if episode.playStateRaw == 2 { // Played
-                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(artworkColors.accent)
-                    } else if episode.playStateRaw == 1 && episode.duration > 0 { // In Progress
-                         let left = max(0, episode.duration - episode.progress)
-                         Text("\(format(left)) left")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(artworkColors.accent)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(artworkColors.accent.opacity(0.1))
-                            .clipShape(Capsule())
-                    } else {
-                         Text(format(episode.duration))
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.gray.opacity(0.1))
-                            .clipShape(Capsule())
-                    }
-                }
-            }
-            
-            HStack {
-                if episode.isDownloaded {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(artworkColors.primary)
-                }
-                
-                Text(episode.desc)
-                    .font(.system(size: 14, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(uiColor: .secondarySystemBackground).opacity(0.5))
-        )
-    }
-    
-    func format(_ duration: TimeInterval) -> String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute]
-        formatter.unitsStyle = .abbreviated
-        return formatter.string(from: duration) ?? ""
-    }
-}

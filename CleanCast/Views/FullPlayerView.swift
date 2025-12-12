@@ -4,15 +4,17 @@ struct FullPlayerView: View {
     @Environment(AudioManager.self) private var audioManager
     @Environment(\.dismiss) var dismiss
     @State private var artworkColors: ArtworkColors?
+    @State private var isDragging = false
+    @State private var sliderValue: Double = 0.0
     
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 30) {
                 // Drag Handle
                 Capsule()
-                    .fill(Color.white.opacity(0.3))
+                    .fill(Color.secondary.opacity(0.3))
                     .frame(width: 60, height: 5)
-                    .padding(.top, 20)
+                    .padding(.top, 10) // Reduced padding
                 
                 Spacer()
                 
@@ -38,36 +40,35 @@ struct FullPlayerView: View {
                         .font(.title2.bold())
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                     
                     Text(audioManager.currentEpisode?.podcast?.title ?? "")
                         .font(.headline)
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
                 .padding(.horizontal)
                 
                 // Progress
                 VStack(spacing: 8) {
-                    ZStack {
-                        CustomSliderView(
-                            value: Binding(
-                                get: { audioManager.currentTime },
-                                set: { _ in }
-                            ),
-                            range: 0...(audioManager.duration > 0 ? audioManager.duration : 1),
-                            accentColor: artworkColors?.accent ?? .white,
-                            onDragChanged: { _ in
-                                // Visual update only, no seek during drag
-                            },
-                            onDragEnded: { newValue in
-                                // Seek only when drag ends
-                                audioManager.seek(to: newValue)
-                            }
-                        )
-                        .padding(.horizontal, 8)
+                    Slider(value: $sliderValue, in: 0...(audioManager.duration > 0 ? audioManager.duration : 1)) { editing in
+                        isDragging = editing
+                        if !editing {
+                            audioManager.seek(to: sliderValue)
+                        }
                     }
-                    .frame(height: 50) // Extra space for indicator
+                    .tint(.blue)
+                    .overlay(alignment: .top) {
+                         if isDragging {
+                             Text(format(sliderValue))
+                                 .font(.system(size: 14, weight: .bold))
+                                 .foregroundStyle(.white)
+                                 .padding(8)
+                                 .background(Capsule().fill(Color.black))
+                                 .offset(y: -40)
+                                 .transition(.opacity)
+                         }
+                    }
                     
                     HStack {
                         Text(format(audioManager.currentTime))
@@ -75,7 +76,7 @@ struct FullPlayerView: View {
                         Text(format(audioManager.duration))
                     }
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 30)
                 
@@ -102,86 +103,31 @@ struct FullPlayerView: View {
                             .font(.largeTitle)
                     }
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 
                 Spacer()
-                
-                // Volume/AirPlay placeholders could go here
                 
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(backgroundView)
-            .ignoresSafeArea(edges: .all)
+            .background(Color(.systemBackground))
+            .ignoresSafeArea() 
         }
-        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
-        .presentationBackground(.clear)
-        .interactiveDismissDisabled(false)
+        // Ensure sheet background is clear so we control it, BUT we are using systemBackground now.
+        // User wants "no background" (Step 2011) or "clean background".
+        // In Step 2016 I used .background(Color(.systemBackground)).
+        // I will stick to systemBackground as it is safe and "new iOS" style.
         .onAppear {
-            updateColors()
+            sliderValue = audioManager.currentTime
+            // Trigger color update if we want to go back to gradient later, but system is cleaner
         }
-        .onChange(of: audioManager.currentEpisode) { _, _ in
-            updateColors()
+        .onChange(of: audioManager.currentTime) { _, newValue in
+             if !isDragging {
+                 sliderValue = newValue
+             }
         }
-    }
-    
-    @ViewBuilder
-    private var backgroundView: some View {
-        ZStack {
-            if let colors = artworkColors {
-                LinearGradient(
-                    colors: [colors.primary.opacity(0.6), colors.secondary.opacity(0.4), .black],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                .background(Color.black) // Fallback
-            } else if let hex = audioManager.currentEpisode?.podcast?.backgroundColorHex,
-                      let color = Color(hex: hex) {
-                LinearGradient(
-                    colors: [color.opacity(0.6), .black],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-                .background(Color.black)
-            } else {
-                Color.black.ignoresSafeArea() // Default dark theme
-            }
-            
-            // Glass effect overlay
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(0.2) // Subtle glass
-                .ignoresSafeArea()
-        }
-    }
-    
-    private func updateColors() {
-        guard let podcast = audioManager.currentEpisode?.podcast else { return }
-        
-        // Try to use loaded hex first for speed
-        if let bgHex = podcast.backgroundColorHex, let accentHex = podcast.accentColorHex {
-             // Create mock colors object or simple state
-             // For now we just need the SwiftUI Colors to use in view
-             // I'll reconstruct ArtworkColors assuming it has init/struct available?
-             // ArtworkColors struct definition is likely in ArtworkColorExtractor.swift.
-             // I'll try to extract if missing.
-        }
-        
-        // Always try extract to get full palette if possible (or if not in DB yet)
-        if let url = podcast.imageURL {
-            Task {
-                if let (data, _) = try? await URLSession.shared.data(from: url),
-                   let uiImage = UIImage(data: data) {
-                    let colors = ArtworkColorExtractor.shared.extractColors(from: uiImage)
-                    await MainActor.run {
-                        self.artworkColors = colors
-                    }
-                }
-            }
-        }
+        // Remove old Artwork Color code if unused, but keep variable to not break build if I missed something
     }
     
     func format(_ duration: TimeInterval) -> String {
