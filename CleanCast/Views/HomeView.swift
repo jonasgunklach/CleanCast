@@ -38,6 +38,11 @@ struct HomeView: View {
                                     HStack(spacing: 16) {
                                         ForEach(newestUnplayedEpisodes) { episode in
                                             HomeEpisodeCard(episode: episode)
+                                                .scrollTransition { content, phase in
+                                                    content
+                                                        .opacity(phase.isIdentity ? 1.0 : 0.8)
+                                                        .scaleEffect(phase.isIdentity ? 1.0 : 0.95)
+                                                }
                                                 .onTapGesture {
                                                     // Calculate queue
                                                     let all = newestUnplayedEpisodes
@@ -49,8 +54,10 @@ struct HomeView: View {
                                                 }
                                         }
                                     }
+                                    .scrollTargetLayout()
                                     .padding(.horizontal)
                                 }
+                                .scrollTargetBehavior(.viewAligned)
                             }
                         }
                         
@@ -158,6 +165,7 @@ struct HomeEpisodeCard: View {
     @State private var artworkColors: ArtworkColors = .default
     @State private var hasExtractedColors = false
     @Environment(AudioManager.self) private var audioManager
+    @Environment(DownloadManager.self) private var downloadManager
     
     // Check if *this* episode is currently playing/active
     private var isCurrentEpisode: Bool {
@@ -171,6 +179,15 @@ struct HomeEpisodeCard: View {
     private var textColor: Color {
         // Use white text for contrast with dominant color background
         .white
+    }
+    
+    private var durationText: String {
+        if episode.progress > 0 && episode.playStateRaw == 1 {
+             let left = max(0, episode.duration - episode.progress)
+             return "\(format(left)) left"
+        } else {
+             return format(episode.duration)
+        }
     }
 
     var body: some View {
@@ -208,10 +225,23 @@ struct HomeEpisodeCard: View {
                 
                 // Info Pills Row
                 HStack(spacing: 8) {
-                    // Podcast name pill
-                    if let podcastTitle = episode.podcast?.title {
-                        Text(podcastTitle)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    // Download Status Pill (Replaces Podcast Name as requested)
+                    if downloadManager.activeDownloads.contains(episode.id) {
+                         // Spinner
+                         ProgressView()
+                            .scaleEffect(0.7)
+                            .frame(width: 14, height: 14)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.25))
+                            )
+                            .tint(.white)
+                    } else if episode.isDownloaded {
+                         // Download Icon
+                         Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 14))
                             .foregroundColor(textColor)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
@@ -219,12 +249,11 @@ struct HomeEpisodeCard: View {
                                 Capsule()
                                     .fill(Color.white.opacity(0.25))
                             )
-                            .lineLimit(1)
                     }
                     
-                    // Duration pill
+                    // Duration or Remaining Time pill
                     if episode.duration > 0 {
-                        Text(format(episode.duration))
+                        Text(durationText)
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundColor(textColor)
                             .padding(.horizontal, 10)
