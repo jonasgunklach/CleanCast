@@ -87,7 +87,7 @@ struct HomeView: View {
                         }
                     }
                 }
-                .padding(.vertical)
+                .padding(.bottom) // Keep bottom padding, remove top/vertical to match iOS native look
             }
             .navigationTitle("Home")
             .refreshable {
