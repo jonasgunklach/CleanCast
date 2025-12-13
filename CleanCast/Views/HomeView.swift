@@ -322,25 +322,45 @@ struct HomeEpisodeCard: View {
     private func extractColors() {
         guard !hasExtractedColors, let url = episode.podcast?.imageURL else { return }
         
-        // Check if podcast already has cached colors
-        if let hex = episode.podcast?.backgroundColorHex, Color(hex: hex) != nil {
-             // We can reconstruct ArtworkColors if we strictly only need primary
-             // But let's try to get the full object if possible or just use the background
-             // For now, let's just use the extractor to be consistent or use cached values if extraction fails?
-             // To be robust, let's extract.
+        // 1. FAST PATH: Check if podcast already has cached colors
+        if let bgHex = episode.podcast?.backgroundColorHex,
+           let bg = Color(hex: bgHex) {
+            
+            let accent: Color
+            if let accentHex = episode.podcast?.accentColorHex, let acc = Color(hex: accentHex) {
+                accent = acc
+            } else {
+                accent = .pink // Fallback
+            }
+            
+            // Construct colors from cache (reuse accent as secondary for now to avoid storing 3 hexes)
+            let cachedColors = ArtworkColors(primary: bg, secondary: accent, accent: accent)
+            
+            self.artworkColors = cachedColors
+            self.hasExtractedColors = true
+            return
         }
         
+        // 2. SLOW PATH: Extract from image
         Task {
-            // Check cache logic or file system? For now simple URL fetch
             if let (data, _) = try? await URLSession.shared.data(from: url),
                let uiImage = UIImage(data: data) {
                 
-                let colors = ArtworkColorExtractor.shared.extractColors(from: uiImage)
+                // Offload to background thread
+                let colors = await Task.detached(priority: .userInitiated) {
+                    return ArtworkColorExtractor.shared.extractColors(from: uiImage)
+                }.value
                 
                 await MainActor.run {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         self.artworkColors = colors
                         self.hasExtractedColors = true
+                        
+                        // 3. CACHE: Save back to model
+                        if let podcast = episode.podcast {
+                            podcast.backgroundColorHex = colors.primary.toHex()
+                            podcast.accentColorHex = colors.accent.toHex()
+                        }
                     }
                 }
             }
