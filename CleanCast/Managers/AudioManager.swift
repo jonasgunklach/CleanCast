@@ -1,6 +1,8 @@
+
 import SwiftUI
 import AVFoundation
 import SwiftData
+import MediaPlayer
 
 @Observable
 class AudioManager {
@@ -20,6 +22,7 @@ class AudioManager {
     
     private init() {
         configureAudioSession()
+        setupRemoteTransportControls()
         
         // Add end of playback observer
         NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying), name: .AVPlayerItemDidPlayToEndTime, object: nil)
@@ -27,6 +30,10 @@ class AudioManager {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
+        if let observer = timeObserver {
+            player.removeTimeObserver(observer)
+            timeObserver = nil
+        }
     }
     
     private func configureAudioSession() {
@@ -39,7 +46,97 @@ class AudioManager {
             print("AudioManager: Failed to configure audio session: \(error)")
         }
     }
+
+    // MARK: - System Integration
     
+    private func setupRemoteTransportControls() {
+        let commandCenter = MPRemoteCommandCenter.shared()
+        
+        // Play/Pause
+        commandCenter.playCommand.addTarget { [weak self] _ in
+            guard let self = self else { return .commandFailed }
+            if !self.isPlaying {
+                self.togglePlayPause()
+                return .success
+            }
+            return .commandFailed
+        }
+        
+        commandCenter.pauseCommand.addTarget { [weak self] _ in
+            guard let self = self else { return .commandFailed }
+            if self.isPlaying {
+                self.pause()
+                return .success
+            }
+            return .commandFailed
+        }
+        
+        // Skip Intervals
+        commandCenter.skipBackwardCommand.addTarget { [weak self] event in
+            guard let self = self else { return .commandFailed }
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 15
+            self.seek(to: self.currentTime - interval)
+            return .success
+        }
+        
+        commandCenter.skipForwardCommand.addTarget { [weak self] event in
+            guard let self = self else { return .commandFailed }
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 30
+            self.seek(to: self.currentTime + interval)
+            return .success
+        }
+        
+        // Scrubbing
+        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
+            guard let self = self, let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
+            self.seek(to: event.positionTime)
+            return .success
+        }
+        
+        // Next Track (Queue)
+        commandCenter.nextTrackCommand.addTarget { [weak self] _ in
+            guard let self = self, !self.upNextQueue.isEmpty else { return .commandFailed }
+            self.playNext()
+            return .success
+        }
+    }
+    
+    func updateNowPlayingInfo() {
+        guard let episode = currentEpisode else {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            return
+        }
+        
+        var nowPlayingInfo = [String: Any]()
+        nowPlayingInfo[MPMediaItemPropertyTitle] = episode.title
+        nowPlayingInfo[MPMediaItemPropertyArtist] = episode.podcast?.title ?? "CleanCast"
+        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
+        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+        
+        // Artwork
+        if let url = episode.podcast?.imageURL {
+             // Asynchronously load image if not cached (simplified for now, ideally cache)
+             // For immediate feedback we might skip image or use a placeholder, 
+             // but `MPMediaItemArtwork` needs a synchronous UIImage.
+             // We'll dispatch async to load it then update again.
+             Task {
+                 if let (data, _) = try? await URLSession.shared.data(from: url), let image = UIImage(data: data) {
+                     let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+                     
+                     await MainActor.run {
+                         // Re-fetch current info to avoid race conditions overwriting newer time
+                         var currentInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [String: Any]()
+                         currentInfo[MPMediaItemPropertyArtwork] = artwork
+                         MPNowPlayingInfoCenter.default().nowPlayingInfo = currentInfo
+                     }
+                 }
+             }
+        }
+        
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+    }
+
     // MARK: - Queue Management
     
     func play(episode: Episode, queue: [Episode] = []) {
@@ -47,6 +144,7 @@ class AudioManager {
             if !isPlaying {
                 player.play()
                 isPlaying = true
+                updateNowPlayingInfo()
             }
             return
         }
@@ -107,6 +205,7 @@ class AudioManager {
         } else {
             isPlaying = false
             player.seek(to: .zero) // Reset to start if purely done
+            updateNowPlayingInfo()
         }
     }
     
@@ -155,6 +254,7 @@ class AudioManager {
 
         player.play()
         setupTimeObserver()
+        updateNowPlayingInfo() // System integration hook
         
         // Trigger Groq Ad Detection (fire and forget)
         Task {
@@ -177,9 +277,6 @@ class AudioManager {
                             duration: 300, 
                             episode: episode
                          )
-                         
-                         // If ad detected at the very start (0s), we might want to skip it?
-                         // UI will show it. Ad skipping logic resides in detecting playback time.
                     } catch {
                         print("AudioManager: Ad detection failed: \(error)")
                     }
@@ -191,6 +288,7 @@ class AudioManager {
     func pause() {
         player.pause()
         isPlaying = false
+        updateNowPlayingInfo()
     }
     
     func togglePlayPause() {
@@ -203,6 +301,7 @@ class AudioManager {
             if player.currentItem != nil {
                 player.play()
                 isPlaying = true
+                updateNowPlayingInfo()
             } else if !upNextQueue.isEmpty {
                 playNext()
             }
@@ -225,6 +324,7 @@ class AudioManager {
         
         isSeeking = true
         currentTime = clampedTime // Update immediately for UI responsiveness
+        updateNowPlayingInfo() // Optimistic UI update
         
         let cmTime = CMTime(seconds: clampedTime, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         // Use small tolerance for smoother seeking (zero tolerance can cause audio glitches)
