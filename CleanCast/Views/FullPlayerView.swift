@@ -43,18 +43,24 @@ struct FullPlayerView: View {
                         
                         // Artwork
                         if let url = audioManager.currentEpisode?.podcast?.imageURL {
-                            AsyncImage(url: url) { image in
-                                image.resizable().aspectRatio(contentMode: .fill)
-                            } placeholder: {
-                                Color.gray.opacity(0.3)
-                            }
-                            .frame(width: geometry.size.width - 60, height: geometry.size.width - 60)
-                            .cornerRadius(12)
-                            .shadow(radius: 20)
+                             let size = max(0, geometry.size.width - 60)
+                             AsyncImage(url: url) { image in
+                                 image.resizable().aspectRatio(contentMode: .fill)
+                             } placeholder: {
+                                 Color.gray.opacity(0.3)
+                             }
+                             .frame(width: size, height: size)
+                             .cornerRadius(12)
+                             .shadow(radius: 20)
+                             .scaleEffect(audioManager.isPlaying ? 1.0 : 0.75)
+                             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: audioManager.isPlaying)
                         } else {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: geometry.size.width - 60, height: geometry.size.width - 60)
+                             let size = max(0, geometry.size.width - 60)
+                             RoundedRectangle(cornerRadius: 12)
+                                 .fill(Color.gray.opacity(0.3))
+                                 .frame(width: size, height: size)
+                                 .scaleEffect(audioManager.isPlaying ? 1.0 : 0.75)
+                                 .animation(.spring(response: 0.5, dampingFraction: 0.7), value: audioManager.isPlaying)
                         }
                         
                         // Info
