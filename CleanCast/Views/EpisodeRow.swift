@@ -5,6 +5,7 @@ struct EpisodeRow: View {
     let artworkColors: ArtworkColors
     
     @Environment(AudioManager.self) private var audioManager
+    @Environment(DownloadManager.self) private var downloadManager
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -49,7 +50,12 @@ struct EpisodeRow: View {
             }
             
             HStack {
-                if episode.isDownloaded {
+                if downloadManager.activeDownloads.contains(episode.id) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                        .frame(width: 14, height: 14)
+                        .tint(artworkColors.primary)
+                } else if episode.isDownloaded {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 14))
                         .foregroundStyle(artworkColors.primary)

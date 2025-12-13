@@ -17,6 +17,7 @@ struct CleanCastApp: App {
         WindowGroup {
             ContentView()
                 .environment(audioManager)
+                .environment(DownloadManager.shared)
         }
         .modelContainer(persistenceController.container)
     }

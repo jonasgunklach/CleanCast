@@ -1,12 +1,25 @@
 import Foundation
 import SwiftData
 
+@Observable
 class DownloadManager: NSObject {
     static let shared = DownloadManager()
+    
+    var activeDownloads: Set<UUID> = []
     
     // Track active downloads if needed (simple implementation for now)
     
     func download(episode: Episode) async throws {
+        await MainActor.run {
+             activeDownloads.insert(episode.id)
+        }
+        
+        defer {
+            Task { @MainActor in
+                activeDownloads.remove(episode.id)
+            }
+        }
+        
         guard let url = URL(string: episode.url) else {
             throw URLError(.badURL)
         }
