@@ -8,27 +8,31 @@ struct FullPlayerView: View {
     @State private var sliderValue: Double = 0.0
     @State private var selectedTab = 0
     
-    // Derived background color matching PodcastDetailView
-    private var backgroundColor: Color {
-        guard let hex = audioManager.currentEpisode?.podcast?.backgroundColorHex,
-              let color = Color(hex: hex) else {
-            return Color(.systemBackground)
-        }
-        
-        if colorScheme == .dark {
-            return color.opacity(0.15)
-        } else {
-            return color.opacity(0.25)
-        }
-    }
+    // Derived background color matching PodcastDetailView -- REMOVED in favor of blurred artwork
     
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Background
-                backgroundColor
-                    .ignoresSafeArea()
-                    .id(audioManager.currentEpisode?.id) // Force update on episode change
+                // Dynamic Blurred Background
+                if let url = audioManager.currentEpisode?.podcast?.imageURL {
+                    AsyncImage(url: url) { image in
+                        image.resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.height) // Constrain to screen size
+                            .clipped() // Clip excess
+                            .blur(radius: 50)
+                            .overlay(Color.black.opacity(0.4)) // Dim for contrast
+                            .ignoresSafeArea()
+                    } placeholder: {
+                        ContainerRelativeShape()
+                            .fill(Color(UIColor.systemBackground))
+                            .ignoresSafeArea()
+                    }
+                } else {
+                    ContainerRelativeShape()
+                        .fill(Color(UIColor.systemBackground))
+                        .ignoresSafeArea()
+                }
                 
                 TabView(selection: $selectedTab) {
                     // Page 0: Player Controls
@@ -168,6 +172,7 @@ struct FullPlayerView: View {
             }
         }
         .presentationDragIndicator(.visible)
+        .preferredColorScheme(.dark) // Force dark mode for readability against blurred background
         .onAppear {
             sliderValue = audioManager.currentTime
         }
