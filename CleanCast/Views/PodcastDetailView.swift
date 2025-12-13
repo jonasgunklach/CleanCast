@@ -309,7 +309,15 @@ struct PodcastDetailView: View {
     // Helper to persist before playing
     private func play(_ episode: Episode) {
         ensurePersisted(episode)
-        audioManager.play(episode: episode)
+        
+        // Auto-fill queue with subsequent episodes from the list
+        var queue: [Episode] = []
+        if let index = displayedEpisodes.firstIndex(where: { $0.id == episode.id }) {
+            let subsequent = displayedEpisodes.suffix(from: index + 1)
+            queue = Array(subsequent)
+        }
+        
+        audioManager.play(episode: episode, queue: queue)
     }
     
     private func togglePlayed(_ episode: Episode) {

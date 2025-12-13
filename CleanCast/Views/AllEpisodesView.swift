@@ -46,7 +46,13 @@ struct AllEpisodesView: View {
     }
     
     private func play(_ episode: Episode) {
-        audioManager.play(episode: episode)
+        // Auto-fill queue with subsequent episodes from the list
+        var queue: [Episode] = []
+        if let index = episodes.firstIndex(where: { $0.id == episode.id }) {
+            let subsequent = episodes.suffix(from: index + 1)
+            queue = Array(subsequent)
+        }
+        audioManager.play(episode: episode, queue: queue)
     }
     
     private func togglePlayed(_ episode: Episode) {

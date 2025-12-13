@@ -7,6 +7,7 @@ class AudioManager {
     static let shared = AudioManager()
     
     var currentEpisode: Episode?
+    var upNextQueue: [Episode] = []
     var isPlaying: Bool = false
     var currentTime: TimeInterval = 0
     var duration: TimeInterval = 0
@@ -19,6 +20,13 @@ class AudioManager {
     
     private init() {
         configureAudioSession()
+        
+        // Add end of playback observer
+        NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying), name: .AVPlayerItemDidPlayToEndTime, object: nil)
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     private func configureAudioSession() {
@@ -32,7 +40,9 @@ class AudioManager {
         }
     }
     
-    func play(episode: Episode) {
+    // MARK: - Queue Management
+    
+    func play(episode: Episode, queue: [Episode] = []) {
         if currentEpisode?.id == episode.id {
             if !isPlaying {
                 player.play()
@@ -41,6 +51,68 @@ class AudioManager {
             return
         }
         
+        // Update queue if provided (replacing existing "context" queue)
+        if !queue.isEmpty {
+            // Remove the playing episode from the queue if present
+            self.upNextQueue = queue.filter { $0.id != episode.id }
+        }
+        
+        startPlayback(for: episode)
+    }
+    
+    func addToQueue(_ episode: Episode, next: Bool = false) {
+        guard episode.id != currentEpisode?.id else { return }
+        
+        // Remove if already in queue to avoid duplicates
+        upNextQueue.removeAll { $0.id == episode.id }
+        
+        if next {
+            upNextQueue.insert(episode, at: 0)
+        } else {
+            upNextQueue.append(episode)
+        }
+    }
+    
+    func removeFromQueue(at offsets: IndexSet) {
+        upNextQueue.remove(atOffsets: offsets)
+    }
+    
+    func moveInQueue(from source: IndexSet, to destination: Int) {
+        upNextQueue.move(fromOffsets: source, toOffset: destination)
+    }
+    
+    func playNext() {
+        guard !upNextQueue.isEmpty else {
+            // Queue empty, stop playback
+            pause()
+            return
+        }
+        
+        let nextEpisode = upNextQueue.removeFirst()
+        startPlayback(for: nextEpisode)
+    }
+    
+    @objc private func playerDidFinishPlaying(note: NSNotification) {
+        print("AudioManager: Playback finished")
+        
+        // Mark current as played completely
+        if let episode = currentEpisode {
+             episode.playStateRaw = 2 // Played
+             episode.progress = episode.duration
+        }
+        
+        // Play next in queue
+        if !upNextQueue.isEmpty {
+            playNext()
+        } else {
+            isPlaying = false
+            player.seek(to: .zero) // Reset to start if purely done
+        }
+    }
+    
+    // MARK: - Internal Playback Logic
+    
+    private func startPlayback(for episode: Episode) {
         // Check for local download first
         let url: URL
         if episode.isDownloaded, let path = episode.localFilePath {
@@ -131,6 +203,8 @@ class AudioManager {
             if player.currentItem != nil {
                 player.play()
                 isPlaying = true
+            } else if !upNextQueue.isEmpty {
+                playNext()
             }
         }
     }

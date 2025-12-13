@@ -39,7 +39,13 @@ struct HomeView: View {
                                         ForEach(newestUnplayedEpisodes) { episode in
                                             HomeEpisodeCard(episode: episode)
                                                 .onTapGesture {
-                                                    audioManager.play(episode: episode)
+                                                    // Calculate queue
+                                                    let all = newestUnplayedEpisodes
+                                                    var queue: [Episode] = []
+                                                    if let index = all.firstIndex(where: { $0.id == episode.id }) {
+                                                        queue = Array(all.suffix(from: index + 1))
+                                                    }
+                                                    audioManager.play(episode: episode, queue: queue)
                                                 }
                                         }
                                     }
@@ -59,7 +65,26 @@ struct HomeView: View {
                                     ForEach(Array(unfinishedEpisodes.prefix(10))) { episode in
                                         HomeEpisodeRow(episode: episode)
                                             .onTapGesture {
-                                                audioManager.play(episode: episode)
+                                                // Calculate queue
+                                                let all = Array(unfinishedEpisodes.prefix(10))
+                                                var queue: [Episode] = []
+                                                if let index = all.firstIndex(where: { $0.id == episode.id }) {
+                                                    queue = Array(all.suffix(from: index + 1))
+                                                }
+                                                audioManager.play(episode: episode, queue: queue)
+                                            }
+                                            .contextMenu {
+                                                Button {
+                                                    audioManager.addToQueue(episode, next: true)
+                                                } label: {
+                                                    Label("Play Next", systemImage: "text.insert")
+                                                }
+                                                
+                                                Button {
+                                                    audioManager.addToQueue(episode, next: false)
+                                                } label: {
+                                                    Label("Add to Queue", systemImage: "text.append")
+                                                }
                                             }
                                             .listRowInsets(EdgeInsets())
                                             .listRowSeparator(.hidden)
@@ -216,9 +241,11 @@ struct HomeEpisodeCard: View {
                     Button {
                         if isPlaying {
                             audioManager.pause()
-                        } else if isCurrentEpisode {
-                             audioManager.play(episode: episode)
                         } else {
+                             // Find context to queue subsequent
+                             // Note: We don't have easy access to the full list here inside the subview unless passed
+                             // But we can just play single for now or assume user plays from list
+                             // Ideally we pass the queue closure or list to the card
                              audioManager.play(episode: episode)
                         }
                     } label: {
@@ -242,6 +269,19 @@ struct HomeEpisodeCard: View {
         .frame(width: 300)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 10)
+        .contextMenu {
+            Button {
+                audioManager.addToQueue(episode, next: true)
+            } label: {
+                Label("Play Next", systemImage: "text.insert")
+            }
+            
+            Button {
+                audioManager.addToQueue(episode, next: false)
+            } label: {
+                Label("Add to Queue", systemImage: "text.append")
+            }
+        }
         .onAppear {
             extractColors()
         }

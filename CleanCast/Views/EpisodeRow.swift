@@ -4,6 +4,8 @@ struct EpisodeRow: View {
     let episode: Episode
     let artworkColors: ArtworkColors
     
+    @Environment(AudioManager.self) private var audioManager
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
@@ -60,6 +62,19 @@ struct EpisodeRow: View {
             }
         }
         .padding(.vertical, 8)
+        .contextMenu {
+            Button {
+                audioManager.addToQueue(episode, next: true)
+            } label: {
+                Label("Play Next", systemImage: "text.insert")
+            }
+            
+            Button {
+                audioManager.addToQueue(episode, next: false)
+            } label: {
+                Label("Add to Queue", systemImage: "text.append")
+            }
+        }
     }
     
     func format(_ duration: TimeInterval) -> String {
