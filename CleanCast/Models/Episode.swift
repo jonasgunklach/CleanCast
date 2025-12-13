@@ -26,6 +26,9 @@ final class Episode {
     @Relationship(deleteRule: .cascade)
     var adSegments: [AdSegment]? = []
     
+    var adDetectionStatus: String? // "processing", "completed", "failed"
+    var adDetectionError: String?
+    
     var podcast: Podcast?
     
     init(title: String, desc: String, url: String, duration: TimeInterval, releaseDate: Date) {

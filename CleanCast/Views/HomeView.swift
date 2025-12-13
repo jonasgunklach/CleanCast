@@ -254,7 +254,7 @@ struct HomeEpisodeCard: View {
         guard !hasExtractedColors, let url = episode.podcast?.imageURL else { return }
         
         // Check if podcast already has cached colors
-        if let hex = episode.podcast?.backgroundColorHex, let bg = Color(hex: hex) {
+        if let hex = episode.podcast?.backgroundColorHex, Color(hex: hex) != nil {
              // We can reconstruct ArtworkColors if we strictly only need primary
              // But let's try to get the full object if possible or just use the background
              // For now, let's just use the extractor to be consistent or use cached values if extraction fails?

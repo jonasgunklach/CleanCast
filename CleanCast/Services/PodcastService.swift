@@ -105,7 +105,7 @@ class FeedParser: NSObject, XMLParserDelegate {
         guard isInsideItem else { return }
         
         // Clean whitespace
-        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        _ = string.trimmingCharacters(in: .whitespacesAndNewlines)
         // Note: XMLParser can call foundCharacters multiple times for one element, so we must append if we want robustness,
         // but for simple strings appending without a flexible buffer can be tricky if we don't reset per element start.
         // A robust parser keeps a buffer. For simplicity here assuming mostly one-shot or handled by `didEndElement`.

@@ -1,11 +1,19 @@
 Command line invocation:
-    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project CleanCast.xcodeproj -scheme CleanCast -destination "platform=iOS Simulator,name=iPhone Dev" IPHONEOS_DEPLOYMENT_TARGET=26.0 SUPPORTED_PLATFORMS=iphonesimulator
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project CleanCast.xcodeproj -scheme CleanCast -destination "platform=iOS Simulator,name=iPhone Dev" IPHONEOS_DEPLOYMENT_TARGET=26.0 SUPPORTED_PLATFORMS=iphonesimulator clean build
 
 Build settings from command line:
     IPHONEOS_DEPLOYMENT_TARGET = 26.0
     SUPPORTED_PLATFORMS = iphonesimulator
 
-2025-12-12 17:18:56.201 xcodebuild[69617:14501584] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+2025-12-13 14:01:20.276 xcodebuild[97798:15176325] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+** CLEAN SUCCEEDED **
+
 ComputePackagePrebuildTargetDependencyGraph
 
 Prepare packages
@@ -35,19 +43,107 @@ ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeD
 
 ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
 
-Build description signature: 5f242f19305987d3d4f848f966bb67ce
-Build description path: /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/XCBuildData/5f242f19305987d3d4f848f966bb67ce.xcbuilddata
+Build description signature: 3402f38b9fa47ee6b72d9e6d1a40bbaa
+Build description path: /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/XCBuildData/3402f38b9fa47ee6b72d9e6d1a40bbaa.xcbuilddata
 ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.1-23B77-90cf18a4295e390e64c810bc6bd7acbc.sdkstatcache
     cd /Users/jonasgunklach/Downloads/CleanCast/CleanCast.xcodeproj
     /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -o /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.1-23B77-90cf18a4295e390e64c810bc6bd7acbc.sdkstatcache
+
+CreateBuildDirectory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products
+    cd /Users/jonasgunklach/Downloads/CleanCast/CleanCast.xcodeproj
+    builtin-create-build-directory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products
+
+CreateBuildDirectory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex
+    cd /Users/jonasgunklach/Downloads/CleanCast/CleanCast.xcodeproj
+    builtin-create-build-directory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex
+
+CreateBuildDirectory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/ExplicitPrecompiledModules
+    cd /Users/jonasgunklach/Downloads/CleanCast/CleanCast.xcodeproj
+    builtin-create-build-directory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+CreateBuildDirectory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator
+    cd /Users/jonasgunklach/Downloads/CleanCast/CleanCast.xcodeproj
+    builtin-create-build-directory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator
+
+CreateBuildDirectory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+    cd /Users/jonasgunklach/Downloads/CleanCast/CleanCast.xcodeproj
+    builtin-create-build-directory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast-3824c9cb6e4097cf0793861a3eb72393-VFS-iphonesimulator/all-product-headers.yaml
+    cd /Users/jonasgunklach/Downloads/CleanCast/CleanCast.xcodeproj
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast-3824c9cb6e4097cf0793861a3eb72393-VFS-iphonesimulator/all-product-headers.yaml
+
+CreateBuildDirectory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator
+    cd /Users/jonasgunklach/Downloads/CleanCast/CleanCast.xcodeproj
+    builtin-create-build-directory /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/DerivedSources/Entitlements-Simulated.plist (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/DerivedSources/Entitlements-Simulated.plist
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.hmap (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.hmap
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-project-headers.hmap (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-project-headers.hmap
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-own-target-headers.hmap (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-own-target-headers.hmap
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast-OutputFileMap.json (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast_const_extract_protocols.json (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast_const_extract_protocols.json
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.SwiftFileList (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.SwiftFileList
 
 WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.SwiftConstValuesFileList (in target 'CleanCast' from project 'CleanCast')
     cd /Users/jonasgunklach/Downloads/CleanCast
     write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.SwiftConstValuesFileList
 
-WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.SwiftFileList (in target 'CleanCast' from project 'CleanCast')
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.LinkFileList (in target 'CleanCast' from project 'CleanCast')
     cd /Users/jonasgunklach/Downloads/CleanCast
-    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.SwiftFileList
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.LinkFileList
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.DependencyStaticMetadataFileList (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.DependencyMetadataFileList (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-generated-files.hmap (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-generated-files.hmap
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-all-target-headers.hmap (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-all-target-headers.hmap
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-all-non-framework-target-headers.hmap (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-all-non-framework-target-headers.hmap
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-DebugDylibPath-normal-arm64.txt (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-DebugDylibPath-normal-arm64.txt
+
+WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-DebugDylibInstallName-normal-arm64.txt (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-DebugDylibInstallName-normal-arm64.txt
+
+MkDir /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator/CleanCast.app (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    /bin/mkdir -p /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator/CleanCast.app
 
 ProcessProductPackaging "" /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.app-Simulated.xcent (in target 'CleanCast' from project 'CleanCast')
     cd /Users/jonasgunklach/Downloads/CleanCast
@@ -60,10 +156,6 @@ ProcessProductPackaging "" /Users/jonasgunklach/Library/Developer/Xcode/DerivedD
     
     builtin-productPackagingUtility -entitlements -format xml -o /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.app-Simulated.xcent
 
-WriteAuxiliaryFile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.LinkFileList (in target 'CleanCast' from project 'CleanCast')
-    cd /Users/jonasgunklach/Downloads/CleanCast
-    write-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.LinkFileList
-
 ProcessProductPackagingDER /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.app-Simulated.xcent /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.app-Simulated.xcent.der (in target 'CleanCast' from project 'CleanCast')
     cd /Users/jonasgunklach/Downloads/CleanCast
     /usr/bin/derq query -f xml -i /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.app-Simulated.xcent -o /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.app-Simulated.xcent.der --raw
@@ -71,19 +163,6 @@ ProcessProductPackagingDER /Users/jonasgunklach/Library/Developer/Xcode/DerivedD
 Ld /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator/CleanCast.app/__preview.dylib normal (in target 'CleanCast' from project 'CleanCast')
     cd /Users/jonasgunklach/Downloads/CleanCast
     /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0-simulator -dynamiclib -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -O0 -L/Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator -F/Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator -install_name @rpath/CleanCast.debug.dylib -dead_strip -rdynamic -Xlinker -no_deduplicate -Xlinker -objc_abi_version -Xlinker 2 -Xlinker -dependency_info -Xlinker /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast_dependency_info.dat -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __entitlements -Xlinker /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.app-Simulated.xcent -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __ents_der -Xlinker /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast.app-Simulated.xcent.der -Xlinker -no_adhoc_codesign -o /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator/CleanCast.app/__preview.dylib
-
-CompileAssetCatalogVariant thinned /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator/CleanCast.app /Users/jonasgunklach/Downloads/CleanCast/CleanCast/Assets.xcassets (in target 'CleanCast' from project 'CleanCast')
-    cd /Users/jonasgunklach/Downloads/CleanCast
-    /Applications/Xcode.app/Contents/Developer/usr/bin/actool /Users/jonasgunklach/Downloads/CleanCast/CleanCast/Assets.xcassets --compile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/assetcatalog_output/thinned --output-format human-readable-text --notices --warnings --export-dependency-info /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/assetcatalog_dependencies_thinned --output-partial-info-plist /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/assetcatalog_generated_info.plist_thinned --app-icon AppIcon --accent-color AccentColor --compress-pngs --enable-on-demand-resources YES --filter-for-thinning-device-configuration iPhone18,1 --filter-for-device-os-version 26.1 --development-region en --target-device iphone --target-device ipad --minimum-deployment-target 26.0 --platform iphonesimulator
-/Users/jonasgunklach/Downloads/CleanCast/CleanCast/Views/HomeView.swift:103:5: error: attribute 'private' can only be used in a non-local scope
-    private func refreshPodcasts() async {
-    ^
-/Users/jonasgunklach/Downloads/CleanCast/CleanCast/Views/HomeView.swift:363:1: error: expected '}' in struct
-
-^
-/Users/jonasgunklach/Downloads/CleanCast/CleanCast/Views/HomeView.swift:4:23: note: to match this opening '{'
-struct HomeView: View {
-                      ^
 
 GenerateAssetSymbols /Users/jonasgunklach/Downloads/CleanCast/CleanCast/Assets.xcassets (in target 'CleanCast' from project 'CleanCast')
     cd /Users/jonasgunklach/Downloads/CleanCast
@@ -94,18 +173,35 @@ GenerateAssetSymbols /Users/jonasgunklach/Downloads/CleanCast/CleanCast/Assets.x
 /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/DerivedSources/GeneratedAssetSymbols.swift
 
 
+MkDir /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/assetcatalog_output/thinned (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    /bin/mkdir -p /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/assetcatalog_output/thinned
+
+MkDir /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/assetcatalog_output/unthinned (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    /bin/mkdir -p /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/assetcatalog_output/unthinned
+
+CompileAssetCatalogVariant thinned /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator/CleanCast.app /Users/jonasgunklach/Downloads/CleanCast/CleanCast/Assets.xcassets (in target 'CleanCast' from project 'CleanCast')
+    cd /Users/jonasgunklach/Downloads/CleanCast
+    /Applications/Xcode.app/Contents/Developer/usr/bin/actool /Users/jonasgunklach/Downloads/CleanCast/CleanCast/Assets.xcassets --compile /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/assetcatalog_output/thinned --output-format human-readable-text --notices --warnings --export-dependency-info /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/assetcatalog_dependencies_thinned --output-partial-info-plist /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/assetcatalog_generated_info.plist_thinned --app-icon AppIcon --accent-color AccentColor --compress-pngs --enable-on-demand-resources YES --filter-for-thinning-device-configuration iPhone18,1 --filter-for-device-os-version 26.1 --development-region en --target-device iphone --target-device ipad --minimum-deployment-target 26.0 --platform iphonesimulator
+/Users/jonasgunklach/Downloads/CleanCast/CleanCast/Services/AdDetectionService.swift:183:10: error: consecutive statements on a line must be separated by ';'
+        } else {
+         ^
+         ;
+/Users/jonasgunklach/Downloads/CleanCast/CleanCast/Services/AdDetectionService.swift:183:11: error: expected expression
+        } else {
+          ^
+
 SwiftDriver CleanCast normal arm64 com.apple.xcode.tools.swift.compiler (in target 'CleanCast' from project 'CleanCast')
     cd /Users/jonasgunklach/Downloads/CleanCast
     builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name CleanCast -Onone -enforce-exclusivity\=checked @/Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.SwiftFileList -DDEBUG -default-isolation\=MainActor -enable-bare-slash-regex -enable-upcoming-feature DisableOutwardActorInference -enable-upcoming-feature InferSendableFromCaptures -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-upcoming-feature MemberImportVisibility -enable-upcoming-feature InferIsolatedConformances -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.1.sdk -target arm64-apple-ios26.0-simulator -g -module-cache-path /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 5 -I /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator -F /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator -emit-localized-strings -emit-localized-strings-path /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64 -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.1-23B77-90cf18a4295e390e64c810bc6bd7acbc.sdkstatcache -output-file-map /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -sdk-module-cache-path /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast_const_extract_protocols.json -Xcc -iquote -Xcc /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-generated-files.hmap -Xcc -I/Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-own-target-headers.hmap -Xcc -I/Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-all-target-headers.hmap -Xcc -iquote -Xcc /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/CleanCast-project-headers.hmap -Xcc -I/Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/DerivedSources-normal/arm64 -Xcc -I/Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/DerivedSources/arm64 -Xcc -I/Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/jonasgunklach/Library/Developer/Xcode/DerivedData/CleanCast-cinswyussiovprelfzndheblumpk/Build/Intermediates.noindex/CleanCast.build/Debug-iphonesimulator/CleanCast.build/Objects-normal/arm64/CleanCast-Swift.h -working-directory /Users/jonasgunklach/Downloads/CleanCast -experimental-emit-module-separately -disable-cmo
-/Users/jonasgunklach/Downloads/CleanCast/CleanCast/Views/HomeView.swift:103:5: error: Attribute 'private' can only be used in a non-local scope
-    private func refreshPodcasts() async {
-    ^ (in target 'CleanCast' from project 'CleanCast')
-/Users/jonasgunklach/Downloads/CleanCast/CleanCast/Views/HomeView.swift:363:1: error: Expected '}' in struct
-
-^ (in target 'CleanCast' from project 'CleanCast')
-/Users/jonasgunklach/Downloads/CleanCast/CleanCast/Views/HomeView.swift:4:23: note: To match this opening '{'
-struct HomeView: View {
-                      ^ (in target 'CleanCast' from project 'CleanCast')
+/Users/jonasgunklach/Downloads/CleanCast/CleanCast/Services/AdDetectionService.swift:183:10: error: Consecutive statements on a line must be separated by ';'
+        } else {
+         ^
+         ; (in target 'CleanCast' from project 'CleanCast')
+/Users/jonasgunklach/Downloads/CleanCast/CleanCast/Services/AdDetectionService.swift:183:11: error: Expected expression
+        } else {
+          ^ (in target 'CleanCast' from project 'CleanCast')
 
 ** BUILD FAILED **
 

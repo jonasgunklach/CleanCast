@@ -83,6 +83,37 @@ class AudioManager {
 
         player.play()
         setupTimeObserver()
+        
+        // Trigger Groq Ad Detection (fire and forget)
+        Task {
+            if episode.adSegments?.isEmpty ?? true, episode.adDetectionStatus != "completed", episode.adDetectionStatus != "processing" {
+                if URL(string: episode.url) != nil {
+                    let context = EpisodeDetectionContext(
+                        id: episode.id,
+                        title: episode.title,
+                        audioURL: episode.url,
+                        isDownloaded: episode.isDownloaded,
+                        localFilePath: episode.localFilePath
+                    )
+                    
+                    do {
+                         // Check first 5 minutes (300 seconds) for intro ads
+                         // This is fast (~5s) because it only processes a small chunk
+                         _ = try await AdDetectionService.shared.analyzeChunk(
+                            context: context, 
+                            startTime: 0, 
+                            duration: 300, 
+                            episode: episode
+                         )
+                         
+                         // If ad detected at the very start (0s), we might want to skip it?
+                         // UI will show it. Ad skipping logic resides in detecting playback time.
+                    } catch {
+                        print("AudioManager: Ad detection failed: \(error)")
+                    }
+                }
+            }
+        }
     }
     
     func pause() {

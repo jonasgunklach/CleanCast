@@ -58,6 +58,27 @@ struct FullPlayerView: View {
                         }
                     }
                     .tint(.blue)
+                    .background(
+                        GeometryReader { geometry in
+                            ZStack(alignment: .leading) {
+                                if let segments = audioManager.currentEpisode?.adSegments, audioManager.duration > 0 {
+                                    ForEach(segments) { segment in
+                                        let startPercent = segment.startTime / audioManager.duration
+                                        let endPercent = segment.endTime / audioManager.duration
+                                        let width = (endPercent - startPercent) * geometry.size.width
+                                        let startOffset = startPercent * geometry.size.width
+                                        
+                                        Rectangle()
+                                            .fill(Color.yellow.opacity(0.6))
+                                            .frame(width: max(2, width), height: 4) // visible height
+                                            .offset(x: startOffset)
+                                    }
+                                }
+                            }
+                            .frame(height: 4)
+                            .offset(y: 14) // Align roughly with slider track (default slider height is ~30-40, track is center)
+                        }
+                    )
                     .overlay(alignment: .top) {
                          if isDragging {
                              Text(format(sliderValue))
