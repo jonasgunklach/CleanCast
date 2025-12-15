@@ -47,6 +47,7 @@ struct FullPlayerView: View {
                                 .frame(width: 60, height: 5)
                                 .padding(.top, 10)
                                 .padding(.bottom, 20)
+                                .padding(.vertical, 25)
                                 .contentShape(Rectangle())
                                 .gesture(
                                     DragGesture(minimumDistance: 0, coordinateSpace: .global)
