@@ -26,6 +26,10 @@ final class Podcast {
     var desc: String?
     var isSubscribed: Bool = true // Added for soft unsubscribe
     
+    // New Features
+    var totalListenedDuration: TimeInterval = 0 // Track popularity
+    var autoDownloadLimit: Int? // Optional per-podcast override
+    
     @Relationship(deleteRule: .cascade, inverse: \Episode.podcast)
     var episodes: [Episode]?
     

@@ -7,6 +7,23 @@ struct PodcastDetailView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     @Environment(AudioManager.self) private var audioManager
+    @Environment(DownloadManager.self) private var downloadManager
+
+
+    private func setAutoDownloadLimit(_ limit: Int?) {
+        if podcast.modelContext == nil {
+             modelContext.insert(podcast)
+        }
+        podcast.autoDownloadLimit = limit
+        try? modelContext.save()
+        
+        // Trigger check immediately
+        Task {
+            await MainActor.run {
+                downloadManager.triggerAutoDownload(for: [podcast])
+            }
+        }
+    }
     
     @State private var isRefreshing = false
     @State private var artworkColors: ArtworkColors = .default
@@ -84,6 +101,16 @@ struct PodcastDetailView: View {
                          }
                          .tint(episode.isDownloaded ? .red : artworkColors.primary)
                      }
+                     .swipeActions(edge: .leading) {
+                         Button {
+                             toggleSaved(episode)
+                         } label: {
+                             Label(episode.isSaved ? "Unsave" : "Save",
+                                   systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
+                         }
+                         .tint(episode.isSaved ? .orange : .blue)
+                     }
+
                      .listRowSeparator(.visible)
                      .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                      .listRowBackground(Color.clear)
@@ -162,10 +189,45 @@ struct PodcastDetailView: View {
                          }
                          
                          Menu("Auto-Download") {
-                             Button("Off", action: {})
-                             Button("Latest 1", action: {})
-                             Button("Latest 3", action: {})
-                             Button("Latest 5", action: {})
+                             Button {
+                                 setAutoDownloadLimit(nil)
+                             } label: {
+                                 if podcast.autoDownloadLimit == nil {
+                                     Label("Global Default", systemImage: "checkmark")
+                                 } else {
+                                     Text("Global Default")
+                                 }
+                             }
+                             
+                             Button {
+                                 setAutoDownloadLimit(1)
+                             } label: {
+                                 if podcast.autoDownloadLimit == 1 {
+                                     Label("Latest 1", systemImage: "checkmark")
+                                 } else {
+                                     Text("Latest 1")
+                                 }
+                             }
+                             
+                             Button {
+                                 setAutoDownloadLimit(2)
+                             } label: {
+                                 if podcast.autoDownloadLimit == 2 {
+                                     Label("Latest 2", systemImage: "checkmark")
+                                 } else {
+                                     Text("Latest 2")
+                                 }
+                             }
+                             
+                             Button {
+                                 setAutoDownloadLimit(3)
+                             } label: {
+                                 if podcast.autoDownloadLimit == 3 {
+                                     Label("Latest 3", systemImage: "checkmark")
+                                 } else {
+                                     Text("Latest 3")
+                                 }
+                             }
                          }
                      } label: {
                          Image(systemName: "ellipsis.circle")
@@ -349,6 +411,13 @@ struct PodcastDetailView: View {
             }
             try? modelContext.save()
         }
+    }
+
+
+    private func toggleSaved(_ episode: Episode) {
+        ensurePersisted(episode)
+        episode.isSaved.toggle()
+        try? modelContext.save()
     }
     
     private func ensurePersisted(_ episode: Episode) {

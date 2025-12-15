@@ -58,4 +58,35 @@ class DownloadManager: NSObject {
     func checkExistingDownloads(for episodes: [Episode]) {
        // logic to verify if files still exist would go here
     }
+    
+    // Auto Download Logic
+    func triggerAutoDownload(for podcasts: [Podcast]) {
+        guard UserDefaults.standard.bool(forKey: "autoDownloadNewest") else { return }
+        let globalLimit = UserDefaults.standard.integer(forKey: "downloadCount")
+        let defaultLimit = globalLimit > 0 ? globalLimit : 3
+        
+        print("DownloadManager: Checking for auto-downloads...")
+        
+        for podcast in podcasts {
+            guard podcast.isSubscribed else { continue }
+            guard let episodes = podcast.episodes else { continue }
+            
+            // Determine limit: Per-podcast override -> Global Setting
+            let effectiveLimit = podcast.autoDownloadLimit ?? defaultLimit
+            if effectiveLimit <= 0 { continue }
+            
+            // Get unplayed episodes sorted by newest
+            let candidates = episodes
+                .filter { $0.playStateRaw == 0 && !$0.isDownloaded }
+                .sorted { $0.releaseDate > $1.releaseDate }
+                .prefix(effectiveLimit)
+            
+            for episode in candidates {
+                print("DownloadManager: Auto-downloading \(episode.title)")
+                Task {
+                    try? await download(episode: episode)
+                }
+            }
+        }
+    }
 }

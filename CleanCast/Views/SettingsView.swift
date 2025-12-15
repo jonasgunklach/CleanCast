@@ -18,7 +18,11 @@ struct SettingsView: View {
                 Section("Downloads") {
                     Toggle("Auto-Download New Episodes", isOn: $autoDownloadNewest)
                     if autoDownloadNewest {
-                        Stepper("Keep latest \(downloadCount) episodes", value: $downloadCount, in: 1...10)
+                        Picker("Keep Downloads", selection: $downloadCount) {
+                            Text("1 Episode").tag(1)
+                            Text("2 Episodes").tag(2)
+                            Text("3 Episodes").tag(3)
+                        }
                     }
                     Button("Clear All Downloads", role: .destructive) {
                         // Action

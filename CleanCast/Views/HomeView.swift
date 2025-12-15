@@ -10,13 +10,52 @@ struct HomeView: View {
     
     @Environment(AudioManager.self) private var audioManager
     
+    // Smart Sorting: Round-Robin (Podcast 1 Ep 1, Podcast 2 Ep 1, P1 Ep 2...)
     private var newestUnplayedEpisodes: [Episode] {
-        let allEpisodes = podcasts.flatMap { $0.episodes ?? [] }
-        return allEpisodes
-            .filter { $0.playStateRaw != 2 } // Show Unplayed and In Progress
-            .sorted { $0.releaseDate > $1.releaseDate }
-            .prefix(25) // Show top 25
-            .map { $0 }
+        // 1. Group by Podcast
+        let grouped = Dictionary(grouping: podcasts.flatMap { $0.episodes ?? [] }) { $0.podcast }
+        
+        // 2. Sort Podcasts by usage (descending)
+        let sortedPodcasts = grouped.keys.sorted {
+            ($0?.totalListenedDuration ?? 0) > ($1?.totalListenedDuration ?? 0)
+        }
+        
+        // 3. Prepare queues per podcast (sorted by release date descending)
+        var podcastQueues: [[Episode]] = []
+        for podcast in sortedPodcasts {
+            guard let podcast = podcast, let eps = grouped[podcast] else { continue }
+            let unplayed = eps
+                .filter { $0.playStateRaw != 2 } // In Progress or Unplayed
+                .sorted { $0.releaseDate > $1.releaseDate }
+            if !unplayed.isEmpty {
+                podcastQueues.append(unplayed)
+            }
+        }
+        
+        // 4. Round Robin Interleaving
+        var result: [Episode] = []
+        var hasItems = true
+        
+        // Limit total iteration to prevent infinite loops if something goes wrong, though logic is safe
+        // Also simpler: loop while queues not empty
+        while !podcastQueues.isEmpty {
+            var nextQueues: [[Episode]] = []
+            
+            for var queue in podcastQueues {
+                if !queue.isEmpty {
+                    // Take the first one (newest for that podcast)
+                    result.append(queue.removeFirst())
+                    
+                    // If more remain, keep the queue
+                    if !queue.isEmpty {
+                        nextQueues.append(queue)
+                    }
+                }
+            }
+            podcastQueues = nextQueues
+        }
+        
+        return Array(result.prefix(25))
     }
     
     var body: some View {

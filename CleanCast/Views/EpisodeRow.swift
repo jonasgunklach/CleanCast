@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct EpisodeRow: View {
     let episode: Episode
@@ -7,6 +8,8 @@ struct EpisodeRow: View {
     @Environment(AudioManager.self) private var audioManager
     @Environment(DownloadManager.self) private var downloadManager
     
+    @Environment(\.modelContext) private var modelContext
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
@@ -69,18 +72,69 @@ struct EpisodeRow: View {
         }
         .padding(.vertical, 8)
         .contextMenu {
-            Button {
-                audioManager.addToQueue(episode, next: true)
-            } label: {
-                Label("Play Next", systemImage: "text.insert")
+            Section {
+                Button {
+                    audioManager.addToQueue(episode, next: true)
+                } label: {
+                    Label("Play Next", systemImage: "text.insert")
+                }
+                
+                Button {
+                    audioManager.addToQueue(episode, next: false)
+                } label: {
+                    Label("Add to Queue", systemImage: "text.append")
+                }
             }
             
-            Button {
-                audioManager.addToQueue(episode, next: false)
-            } label: {
-                Label("Add to Queue", systemImage: "text.append")
+            Section {
+                Button {
+                    toggleDownload()
+                } label: {
+                    Label(episode.isDownloaded ? "Remove Download" : "Download", systemImage: episode.isDownloaded ? "trash" : "arrow.down.circle")
+                }
+                
+                Button {
+                    toggleSaved()
+                } label: {
+                    Label(episode.isSaved ? "Unsave" : "Save", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
+                }
+                
+                Button {
+                    togglePlayed()
+                } label: {
+                    Label(episode.playStateRaw == 2 ? "Mark Unplayed" : "Mark Played", systemImage: episode.playStateRaw == 2 ? "circle" : "checkmark.circle")
+                }
             }
         }
+    }
+    
+    // MARK: - Actions
+    
+    private func toggleDownload() {
+        Task {
+            if episode.isDownloaded {
+                DownloadManager.shared.removeDownload(episode: episode)
+            } else {
+                try? await DownloadManager.shared.download(episode: episode)
+            }
+            // ensure persistence if needed, though DM handles some
+        }
+    }
+    
+    private func toggleSaved() {
+        episode.isSaved.toggle()
+        try? modelContext.save()
+    }
+    
+    private func togglePlayed() {
+        if episode.playStateRaw == 2 {
+            episode.playStateRaw = 0 // Unplayed
+            episode.progress = 0
+        } else {
+            episode.playStateRaw = 2 // Played
+            episode.progress = episode.duration
+        }
+        try? modelContext.save()
     }
     
     func format(_ duration: TimeInterval) -> String {

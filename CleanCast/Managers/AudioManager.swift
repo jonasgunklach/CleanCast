@@ -15,6 +15,20 @@ class AudioManager {
     var duration: TimeInterval = 0
     private var timeObserver: Any?
     
+    // Playback Rate
+    var playbackRate: Float = 1.0 {
+        didSet {
+            if isPlaying {
+                player.rate = playbackRate
+            }
+            updateNowPlayingInfo()
+        }
+    }
+    
+    // Sleep Timer
+    var sleepTimer: Timer?
+    var sleepTimerEndDate: Date?
+    
     private var player = AVPlayer()
     
     // Persistence Key
@@ -112,7 +126,7 @@ class AudioManager {
         nowPlayingInfo[MPMediaItemPropertyArtist] = episode.podcast?.title ?? "CleanCast"
         nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
         nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
-        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? playbackRate : 0.0
         
         // Artwork
         if let url = episode.podcast?.imageURL {
@@ -142,7 +156,7 @@ class AudioManager {
     func play(episode: Episode, queue: [Episode] = []) {
         if currentEpisode?.id == episode.id {
             if !isPlaying {
-                player.play()
+                player.playImmediately(atRate: playbackRate)
                 isPlaying = true
                 updateNowPlayingInfo()
             }
@@ -252,7 +266,7 @@ class AudioManager {
              player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
         }
 
-        player.play()
+        player.playImmediately(atRate: playbackRate)
         setupTimeObserver()
         updateNowPlayingInfo() // System integration hook
         
@@ -289,6 +303,29 @@ class AudioManager {
         player.pause()
         isPlaying = false
         updateNowPlayingInfo()
+        invalidateSleepTimer() // Cancel timer when manually paused
+    }
+    
+    func startSleepTimer(minutes: Int) {
+        invalidateSleepTimer()
+        guard minutes > 0 else { return }
+        
+        let interval = TimeInterval(minutes * 60)
+        sleepTimerEndDate = Date().addingTimeInterval(interval)
+        
+        print("AudioManager: Sleep timer set for \(minutes) minutes")
+        
+        sleepTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+            print("AudioManager: Sleep timer fired. Pausing.")
+            self?.togglePlayPause() // Uses existing toggle which handles pause
+            self?.sleepTimerEndDate = nil
+        }
+    }
+    
+    func invalidateSleepTimer() {
+        sleepTimer?.invalidate()
+        sleepTimer = nil
+        sleepTimerEndDate = nil
     }
     
     func togglePlayPause() {
@@ -299,7 +336,7 @@ class AudioManager {
         } else {
             // Resume if nothing selected?
             if player.currentItem != nil {
-                player.play()
+                player.playImmediately(atRate: playbackRate)
                 isPlaying = true
                 updateNowPlayingInfo()
             } else if !upNextQueue.isEmpty {
@@ -428,6 +465,11 @@ class AudioManager {
                     episode.playStateRaw = 2 // Played
                 } else if newTime > 0 {
                     episode.playStateRaw = 1 // In Progress
+                }
+                
+                // Track usage stats
+                if self.isPlaying {
+                     episode.podcast?.totalListenedDuration += timeSinceLastUpdate
                 }
             }
         }

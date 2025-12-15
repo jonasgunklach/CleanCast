@@ -22,6 +22,10 @@ final class Episode {
     var isDownloaded: Bool = false
     var localFilePath: String? // Absolute or relative path to downloaded file
     
+    // New Features
+    var transcript: String?
+    var isSaved: Bool = false
+    
     // Ad Segments as a Relationship to a separate Model
     @Relationship(deleteRule: .cascade)
     var adSegments: [AdSegment]? = []

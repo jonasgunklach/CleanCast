@@ -1,37 +1,37 @@
 import SwiftUI
 
 struct FullPlayerView: View {
+    @Binding var showFullPlayer: Bool
     @Environment(AudioManager.self) private var audioManager
-    @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
     @State private var isDragging = false
     @State private var sliderValue: Double = 0.0
     @State private var selectedTab = 0
     
-    // Derived background color matching PodcastDetailView -- REMOVED in favor of blurred artwork
+    // Drag to dismiss state
+    @State private var dragOffset: CGSize = .zero
     
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Dynamic Blurred Background
+                // 1. Solid Base Background (prevents transparency)
+                Color.black.ignoresSafeArea()
+                
+                // 2. Dynamic Blurred Background
                 if let url = audioManager.currentEpisode?.podcast?.imageURL {
                     AsyncImage(url: url) { image in
                         image.resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(width: geometry.size.width, height: geometry.size.height) // Constrain to screen size
-                            .clipped() // Clip excess
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
                             .blur(radius: 50)
-                            .overlay(Color.black.opacity(0.4)) // Dim for contrast
+                            .overlay(Color.black.opacity(0.4))
                             .ignoresSafeArea()
                     } placeholder: {
-                        ContainerRelativeShape()
-                            .fill(Color(UIColor.systemBackground))
-                            .ignoresSafeArea()
+                        Color.black.ignoresSafeArea()
                     }
                 } else {
-                    ContainerRelativeShape()
-                        .fill(Color(UIColor.systemBackground))
-                        .ignoresSafeArea()
+                    Color.black.ignoresSafeArea()
                 }
                 
                 TabView(selection: $selectedTab) {
@@ -73,11 +73,11 @@ struct FullPlayerView: View {
                                 .font(.title2.bold())
                                 .multilineTextAlignment(.center)
                                 .lineLimit(2)
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(.white) // Ensure white text on dark blurred background
                             
                             Text(audioManager.currentEpisode?.podcast?.title ?? "")
                                 .font(.headline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.white.opacity(0.7))
                                 .lineLimit(1)
                         }
                         .padding(.horizontal)
@@ -90,7 +90,7 @@ struct FullPlayerView: View {
                                     audioManager.seek(to: sliderValue)
                                 }
                             }
-                            .tint(.white) // White tint looks better on gradient
+                            .tint(.white) 
                             .background(
                                 GeometryReader { geometry in
                                     ZStack(alignment: .leading) {
@@ -130,7 +130,7 @@ struct FullPlayerView: View {
                                 Text(format(audioManager.duration))
                             }
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white.opacity(0.7))
                         }
                         .padding(.horizontal, 30)
                         
@@ -157,21 +157,88 @@ struct FullPlayerView: View {
                                     .font(.largeTitle)
                             }
                         }
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.white)
                         
-                        Spacer()
-                        Spacer()
+                        // Bottom Actions (Speed, Sleep) - RESTORED
+                        HStack(spacing: 40) {
+                            // Speed
+                            Menu {
+                                Picker("Speed", selection: Bindable(audioManager).playbackRate) {
+                                    ForEach([0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 1.7, 2.0], id: \.self) { rate in
+                                        Text("\(String(format: "%.1fx", rate))").tag(Float(rate))
+                                    }
+                                }
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Text("\(String(format: "%.1fx", audioManager.playbackRate))")
+                                        .font(.system(size: 14, weight: .bold))
+                                    Text("Speed")
+                                        .font(.caption2)
+                                }
+                                .foregroundStyle(.white.opacity(0.8))
+                                .padding(8)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(8)
+                            }
+                            
+                            // Sleep Timer
+                            Menu {
+                                Button("Off") { audioManager.invalidateSleepTimer() }
+                                Button("5 min") { audioManager.startSleepTimer(minutes: 5) }
+                                Button("10 min") { audioManager.startSleepTimer(minutes: 10) }
+                                Button("15 min") { audioManager.startSleepTimer(minutes: 15) }
+                                Button("30 min") { audioManager.startSleepTimer(minutes: 30) }
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: audioManager.sleepTimer != nil ? "moon.fill" : "moon")
+                                        .font(.system(size: 18))
+                                    Text(audioManager.sleepTimer != nil ? "On" : "Sleep")
+                                        .font(.caption2)
+                                }
+                                .foregroundStyle(audioManager.sleepTimer != nil ? .yellow : .white.opacity(0.8))
+                                .padding(8)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(8)
+                            }
+                        }
+                        .padding(.bottom, 60) // Increased padding to clear tab dots
                     }
                     .tag(0)
                     
                     // Page 1: Up Next Queue
                     UpNextView()
                         .tag(1)
+                    
+                    // Page 2: Transcript - RESTORED
+                    //if let episode = audioManager.currentEpisode {
+                    //    TranscriptView(episode: episode)
+                    //        .tag(2)
+                    //}
                 }
                 .tabViewStyle(.page(indexDisplayMode: .always))
             }
+            .offset(y: dragOffset.height) // Apply drag offset
+            .highPriorityGesture( // changed to highPriorityGesture for better responsiveness
+                DragGesture()
+                    .onChanged { gesture in
+                        if gesture.translation.height > 0 {
+                            dragOffset = gesture.translation
+                        }
+                    }
+                    .onEnded { gesture in
+                        if gesture.translation.height > 100 {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                showFullPlayer = false
+                            }
+                            dragOffset = .zero
+                        } else {
+                            withAnimation(.spring()) {
+                                dragOffset = .zero
+                            }
+                        }
+                    }
+            )
         }
-        .presentationDragIndicator(.visible)
         .preferredColorScheme(.dark) // Force dark mode for readability against blurred background
         .onAppear {
             sliderValue = audioManager.currentTime

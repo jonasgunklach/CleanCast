@@ -16,42 +16,48 @@ struct ContentView: View {
     @State private var searchText: String = ""
     
     var body: some View {
-        TabView {
-            Tab("Home", systemImage: "house.fill") {
-                HomeView()
-            }
-            
-            Tab("Library", systemImage: "square.grid.2x2.fill") {
-                LibraryView()
-            }
-            
-            Tab("Settings", systemImage: "gear") {
-                SettingsView()
-            }
-            
-            Tab("Search", systemImage: "magnifyingglass", role: .search) {
-                SearchView(searchText: $searchText)
-                    .searchable(text: $searchText, prompt: "Search for podcasts...")
-            }
-        }
-        .id("MainTabs")
-        // Mini player accessory
-        .tabViewBottomAccessory {
-            MiniPlayerView()
-                .opacity(showFullPlayer ? 0 : 1)
-                .onTapGesture {
-                    if audioManager.currentEpisode != nil {
-                        showFullPlayer = true
-                    }
+        ZStack {
+            TabView {
+                Tab("Home", systemImage: "house.fill") {
+                    HomeView()
                 }
+                
+                Tab("Library", systemImage: "square.grid.2x2.fill") {
+                    LibraryView()
+                }
+                
+                Tab("Settings", systemImage: "gear") {
+                    SettingsView()
+                }
+                
+                Tab("Search", systemImage: "magnifyingglass", role: .search) {
+                    SearchView(searchText: $searchText)
+                        .searchable(text: $searchText, prompt: "Search for podcasts...")
+                }
+            }
+            .id("MainTabs")
+            // Mini player accessory
+            .tabViewBottomAccessory {
+                MiniPlayerView()
+                    .opacity(showFullPlayer ? 0 : 1)
+                    .onTapGesture {
+                        if audioManager.currentEpisode != nil {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                showFullPlayer = true
+                            }
+                        }
+                    }
+            }
+            .tint(currentAccentColor)
+            .accentColor(currentAccentColor)
+            
+            // Full Player Overlay
+            if showFullPlayer {
+                FullPlayerView(showFullPlayer: $showFullPlayer)
+                    .transition(.move(edge: .bottom))
+                    .zIndex(1)
+            }
         }
-        .sheet(isPresented: $showFullPlayer) {
-            FullPlayerView()
-                .ignoresSafeArea(edges: .all)
-                .presentationDragIndicator(.hidden)
-        }
-        .tint(currentAccentColor)
-        .accentColor(currentAccentColor)
         .onAppear {
             audioManager.restoreSession(context: modelContext)
         }

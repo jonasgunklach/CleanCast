@@ -18,12 +18,32 @@ struct LibraryView: View {
         }
     }
 
+    @State private var selectedTab = 0 // 0: Library, 1: Downloaded, 2: Saved
+    @Environment(AudioManager.self) private var audioManager
+
     var body: some View {
         NavigationStack {
-            PodcastLibraryGrid(sort: sortOption.descriptor)
-                .navigationTitle("Library")
-                .navigationBarTitleDisplayMode(.large) // Explicitly set to large
-                .toolbar {
+            VStack {
+                Picker("Library Section", selection: $selectedTab) {
+                    Text("Library").tag(0)
+                    Text("Downloaded").tag(1)
+                    Text("Saved").tag(2)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                
+                if selectedTab == 0 {
+                    PodcastLibraryGrid(sort: sortOption.descriptor)
+                } else if selectedTab == 1 {
+                    DownloadedEpisodesList()
+                } else {
+                    SavedEpisodesList()
+                }
+            }
+            .navigationTitle("Library")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                if selectedTab == 0 {
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
                             Picker("Sort By", selection: $sortOption) {
@@ -32,10 +52,87 @@ struct LibraryView: View {
                             }
                         } label: {
                             Image(systemName: "arrow.up.arrow.down.circle")
-                                .font(.system(size: 16, weight: .semibold)) // Matches title weight roughly
+                                .font(.system(size: 16, weight: .semibold))
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+struct DownloadedEpisodesList: View {
+    @Query(filter: #Predicate<Episode> { $0.isDownloaded == true }, sort: \Episode.releaseDate, order: .reverse)
+    private var episodes: [Episode]
+    @Environment(AudioManager.self) private var audioManager
+    
+    var body: some View {
+        if episodes.isEmpty {
+            ContentUnavailableView("No Downloads", systemImage: "arrow.down.circle", description: Text("Episodes you download will appear here."))
+        } else {
+            List {
+                ForEach(episodes) { episode in
+                     Button {
+                         // Build queue
+                         let all = episodes
+                         var queue: [Episode] = []
+                         if let index = all.firstIndex(where: { $0.id == episode.id }) {
+                             queue = Array(all.suffix(from: index + 1))
+                         }
+                         audioManager.play(episode: episode, queue: queue)
+                     } label: {
+                         EpisodeListRow(episode: episode)
+                     }
+                     .listRowInsets(EdgeInsets())
+                     .listRowSeparator(.hidden)
+                     .swipeActions(edge: .trailing) {
+                         Button(role: .destructive) {
+                             DownloadManager.shared.removeDownload(episode: episode)
+                         } label: {
+                             Label("Delete", systemImage: "trash")
+                         }
+                     }
+                }
+            }
+            .listStyle(.plain)
+        }
+    }
+}
+
+struct SavedEpisodesList: View {
+    @Query(filter: #Predicate<Episode> { $0.isSaved == true }, sort: \Episode.releaseDate, order: .reverse)
+    private var episodes: [Episode]
+    @Environment(AudioManager.self) private var audioManager
+    
+    var body: some View {
+        if episodes.isEmpty {
+            ContentUnavailableView("No Saved Episodes", systemImage: "bookmark", description: Text("Episodes you save will appear here."))
+        } else {
+            List {
+                ForEach(episodes) { episode in
+                     Button {
+                         // Build queue
+                         let all = episodes
+                         var queue: [Episode] = []
+                         if let index = all.firstIndex(where: { $0.id == episode.id }) {
+                             queue = Array(all.suffix(from: index + 1))
+                         }
+                         audioManager.play(episode: episode, queue: queue)
+                     } label: {
+                         EpisodeListRow(episode: episode)
+                     }
+                     .listRowInsets(EdgeInsets())
+                     .listRowSeparator(.hidden)
+                     .swipeActions(edge: .trailing) {
+                         Button(role: .destructive) {
+                             episode.isSaved = false
+                         } label: {
+                             Label("Unsave", systemImage: "bookmark.slash")
+                         }
+                     }
+                }
+            }
+            .listStyle(.plain)
         }
     }
 }
@@ -94,11 +191,9 @@ struct PodcastLibraryGrid: View {
         
         // Last Updated
         if let date = podcast.lastUpdate {
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .abbreviated
-            components.append(formatter.localizedString(for: date, relativeTo: Date()))
+            components.append(date.compactTimeAgo())
         } else {
-            components.append("Unknown")
+            components.append("-")
         }
         
         // New Episodes Count (Consecutive unplayed from newest)
