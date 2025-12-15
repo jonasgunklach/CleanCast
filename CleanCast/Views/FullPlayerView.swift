@@ -7,6 +7,7 @@ struct FullPlayerView: View {
     @State private var isDragging = false
     @State private var sliderValue: Double = 0.0
     @State private var selectedTab = 0
+    @State private var scrollPosition: Int? = 0
     
     // Drag to dismiss state
     @GestureState private var dragOffset: CGFloat = 0
@@ -40,11 +41,41 @@ struct FullPlayerView: View {
                     LazyHStack(spacing: 0) {
                         // Page 0: Player Controls
                         VStack(spacing: 30) {
-                            // Drag Handle
+                            // Drag Handle (with dismiss gesture)
                             Capsule()
                                 .fill(Color.secondary.opacity(0.3))
                                 .frame(width: 60, height: 5)
                                 .padding(.top, 10)
+                                .padding(.bottom, 20)
+                                .contentShape(Rectangle())
+                                .gesture(
+                                    DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                                        .updating($dragOffset) { value, state, _ in
+                                            // Only vertical drags on the handle
+                                            guard value.translation.height > 0 else { return }
+                                            state = value.translation.height
+                                        }
+                                        .onEnded { value in
+                                            let y = max(0, value.translation.height)
+                                            let v = value.velocity.height
+                                            let shouldDismiss = (y > 150) || (v > 1000)
+                                            
+                                            if shouldDismiss {
+                                                showFullPlayer = false
+                                                committedOffset = y
+                                                withAnimation(.easeOut(duration: 0.25)) {
+                                                    committedOffset = geometry.size.height
+                                                }
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                                    committedOffset = 0
+                                                }
+                                            } else {
+                                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                                    committedOffset = 0
+                                                }
+                                            }
+                                        }
+                                )
                             
                             
                             
@@ -192,49 +223,37 @@ struct FullPlayerView: View {
                             .padding(.bottom, 60)
                         }
                         .containerRelativeFrame(.horizontal)
+                        .id(0)
                         
                         // Page 1: Up Next Queue
                         UpNextView()
                             .containerRelativeFrame(.horizontal)
+                            .id(1)
                         
                     }
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.paging)
                 .scrollIndicators(.hidden)
+                .scrollPosition(id: $scrollPosition)
+                
+                // Pagination Dots
+                VStack {
+                    Spacer()
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill((scrollPosition ?? 0) == 0 ? Color.white : Color.white.opacity(0.3))
+                            .frame(width: 8, height: 8)
+                        Circle()
+                            .fill((scrollPosition ?? 0) == 1 ? Color.white : Color.white.opacity(0.3))
+                            .frame(width: 8, height: 8)
+                    }
+                    .padding(.bottom, 80)
+                }
             }
             .offset(y: committedOffset + dragOffset)
             .scaleEffect(1.0 - (dragOffset / geometry.size.height) * 0.15)
             .opacity(1.0 - (dragOffset / geometry.size.height) * 0.5)
-            .highPriorityGesture(
-                DragGesture(minimumDistance: 3, coordinateSpace: .global)
-                    .updating($dragOffset) { value, state, _ in
-                        guard abs(value.translation.height) > abs(value.translation.width) else { return }
-                        state = max(0, value.translation.height)
-                    }
-                    .onEnded { value in
-                        let y = max(0, value.translation.height)
-                        let v = value.velocity.height
-                        let shouldDismiss = (y > 120) || (v > 900)
-                        
-                        if shouldDismiss {
-                            // Immediately show mini player
-                            showFullPlayer = false
-                            // Commit and animate full player away
-                            committedOffset = y
-                            withAnimation(.easeOut(duration: 0.25)) {
-                                committedOffset = geometry.size.height
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                committedOffset = 0
-                            }
-                        } else {
-                            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                                committedOffset = 0
-                            }
-                        }
-                    }
-            )
         }
         .ignoresSafeArea()
         .preferredColorScheme(.dark) // Force dark mode for readability against blurred background
