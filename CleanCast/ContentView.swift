@@ -39,7 +39,8 @@ struct ContentView: View {
             // Mini player accessory
             .tabViewBottomAccessory {
                 MiniPlayerView()
-                    .opacity(showFullPlayer ? 0 : 1)
+                    //.opacity(showFullPlayer ? 0 : 1)
+                    //.animation(.easeIn(duration: 0.2), value: showFullPlayer)
                     .onTapGesture {
                         if audioManager.currentEpisode != nil {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {

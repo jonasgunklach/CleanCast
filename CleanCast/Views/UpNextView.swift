@@ -19,6 +19,7 @@ struct UpNextView: View {
                 }
             }
             .padding()
+            .padding(.top, 40)
             
             if audioManager.upNextQueue.isEmpty {
                 Spacer()

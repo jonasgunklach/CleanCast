@@ -8,6 +8,7 @@
 import Foundation
 import AVFoundation
 import OSLog
+import OSLog
 
 struct EpisodeDetectionContext: Sendable {
     let id: UUID
@@ -84,7 +85,7 @@ final class AdDetectionService {
                          localURL.path.contains("ad-detection-")
         
         let overallStart = Date()
-        var allDetectedSegments: [DetectedAdSegment] = []
+        var allSegments: [AdSegment] = []
         
         do {
             // Get episode duration
@@ -109,23 +110,19 @@ final class AdDetectionService {
                     groqKey: groqKey
                 )
                 
-                allDetectedSegments.append(contentsOf: blockSegments)
+                allSegments.append(contentsOf: blockSegments)
                 blockStart = blockEnd
             }
             
-            // Apply intelligent merging on DTOs
-            let finalDetectedSegments = mergeAndAdjustSegments(allDetectedSegments, episodeDuration: duration)
+            // Apply intelligent merging
+            let finalSegments = mergeAndAdjustSegments(allSegments, episodeDuration: duration)
             
-            logger.info("Final result: \(finalDetectedSegments.count) ad segments after merging")
-            var convertedSegments: [AdSegment] = []
+            logger.info("Final result: \(finalSegments.count) ad segments after merging")
             
             // Store results in episode
             await MainActor.run {
-                // Convert DTOs to Model objects on MainActor
-                convertedSegments = finalDetectedSegments.map { convertToModel($0) }
-                
                 if let episode = episode {
-                    episode.adSegments = convertedSegments
+                    episode.adSegments = finalSegments
                     episode.adDetectionStatus = "completed"
                     episode.adDetectionError = nil
                 }
@@ -139,7 +136,7 @@ final class AdDetectionService {
                 cleanupTempFile(at: localURL)
             }
             
-            return convertedSegments
+            return finalSegments
             
         } catch {
             logger.error("Ad detection failed: \(error.localizedDescription, privacy: .public)")
@@ -192,24 +189,11 @@ final class AdDetectionService {
                  }
                  audioData = extractedData
             } else if let remoteURL = URL(string: context.audioURL) {
-                 // Optimization: Manually download first chunk (~15MB for ~5-10m) to avoid AVAssetExportSession remote limits
-                 logger.info("STOP: Downloading partial remote file for chunk extraction")
-                 
-                 // Estimate bytes for duration (assuming 192kbps safe upper bound + overhead)
-                 // 300 seconds * 24KB/s = 7.2MB. Let's grab 15MB to be safe and cover VBR spikes.
-                 let bytesToDownload: Int64 = 15 * 1024 * 1024 // 15 MB
-                 
-                 guard let localPartialURL = try await downloadPartialAudio(url: remoteURL, limitBytes: bytesToDownload) else {
-                     throw NSError(domain: "AdDetection", code: -4, userInfo: [NSLocalizedDescriptionKey: "Failed to download partial audio"])
-                 }
-                 
-                 defer {
-                     try? FileManager.default.removeItem(at: localPartialURL)
-                 }
-                 
-                 let asset = AVURLAsset(url: localPartialURL)
+                 // Optimization: Use remote AVAsset to extract only the needed chunk without full download
+                 logger.info("STOP: Using remote asset for chunk extraction logic")
+                 let asset = AVURLAsset(url: remoteURL)
                  guard let extractedData = try await extractAudioChunk(asset: asset, start: startTime, duration: duration) else {
-                     throw NSError(domain: "AdDetection", code: -3, userInfo: [NSLocalizedDescriptionKey: "Failed to extract from partial local file"])
+                     throw NSError(domain: "AdDetection", code: -3, userInfo: [NSLocalizedDescriptionKey: "Failed to extract remote chunk"])
                  }
                  audioData = extractedData
             } else {
@@ -236,11 +220,11 @@ final class AdDetectionService {
         )
         
         // Apply timestamp adjustment for sped-up audio
-        let adjustedSegments: [DetectedAdSegment]
+        let adjustedSegments: [AdSegment]
         if isSpedUp {
             // Audio was 2x speed, multiply timestamps by 2 and add chunk start time
             adjustedSegments = segments.map { segment in
-                DetectedAdSegment(
+                AdSegment(
                     startTime: (segment.startTime * 2) + startTime,
                     endTime: (segment.endTime * 2) + startTime,
                     confidence: segment.confidence,
@@ -254,54 +238,45 @@ final class AdDetectionService {
         } else {
             // Add chunk start time to segment timestamps
             adjustedSegments = segments.map { segment in
-                DetectedAdSegment(
+                AdSegment(
                     startTime: segment.startTime + startTime,
                     endTime: segment.endTime + startTime,
-                    confidence: segment.confidence,
-                    label: segment.label,
-                    adType: segment.adType,
-                    brandOrOffer: segment.brandOrOffer,
-                    evidenceExcerpt: segment.evidenceExcerpt,
-                    reasoning: segment.reasoning
-                )
-            }
+                confidence: segment.confidence,
+                label: segment.label,
+                adType: segment.adType,
+                brandOrOffer: segment.brandOrOffer,
+                evidenceExcerpt: segment.evidenceExcerpt,
+                reasoning: segment.reasoning
+            )
+        }
         }
         
         // Apply intelligent merging
         let effectiveDuration = episodeDuration > 0 ? episodeDuration : (startTime + duration)
         let finalSegments = mergeAndAdjustSegments(adjustedSegments, episodeDuration: effectiveDuration)
         
-        var convertedSegments: [AdSegment] = []
-        
         // Merge with existing segments in episode
         if let episode = episode {
             await MainActor.run {
-                convertedSegments = finalSegments.map { convertToModel($0) }
                 var existing = episode.adSegments ?? []
-                existing.append(contentsOf: convertedSegments)
-                // We need to re-merge model objects here or convert back/forth. 
-                // Simple approach: just append. The main loop merges DTOs properly. 
-                // For partial chunk, simple append is "OK" but let's try to merge properly if we extracted DTOs from existing.
-                // But existing are Model objects. Let's just append for now to be safe.
-                episode.adSegments = existing // Naive merge for chunk updates
+                existing.append(contentsOf: finalSegments)
+                episode.adSegments = mergeAndAdjustSegments(existing, episodeDuration: effectiveDuration)
             }
-        } else {
-             convertedSegments = finalSegments.map { convertToModel($0) } // Convert if no episode to attach to immediately
         }
         
         let totalTime = Date().timeIntervalSince(chunkStart)
-        logger.info("⏱️ [analyzeChunk] Total time: \(String(format: "%.2f", totalTime))s - Found \(convertedSegments.count) ad segments")
+        logger.info("⏱️ [analyzeChunk] Total time: \(String(format: "%.2f", totalTime))s - Found \(finalSegments.count) ad segments")
         
-        return convertedSegments
+        return finalSegments
     }
     
     /// Merge segments that are ≤10 seconds apart and extend to start/end if ≤10 seconds away
-    func mergeAndAdjustSegments(_ segments: [DetectedAdSegment], episodeDuration: TimeInterval) -> [DetectedAdSegment] {
+    func mergeAndAdjustSegments(_ segments: [AdSegment], episodeDuration: TimeInterval) -> [AdSegment] {
         guard !segments.isEmpty else { return [] }
         
         // Sort segments by start time
         let sorted = segments.sorted { $0.startTime < $1.startTime }
-        var merged: [DetectedAdSegment] = []
+        var merged: [AdSegment] = []
         
         for segment in sorted {
             if let last = merged.last {
@@ -309,7 +284,7 @@ final class AdDetectionService {
                 let gap = segment.startTime - last.endTime
                 if gap <= 10 {
                     // Merge segments
-                    let mergedSegment = DetectedAdSegment(
+                    let mergedSegment = AdSegment(
                         startTime: last.startTime,
                         endTime: max(last.endTime, segment.endTime),
                         confidence: max(last.confidence, segment.confidence),
@@ -330,7 +305,7 @@ final class AdDetectionService {
         
         // Extend first segment to start if ≤10 seconds from beginning
         if let first = merged.first, first.startTime <= 10 {
-            merged[0] = DetectedAdSegment(
+            merged[0] = AdSegment(
                 startTime: 0,
                 endTime: first.endTime,
                 confidence: first.confidence,
@@ -344,7 +319,7 @@ final class AdDetectionService {
         
         // Extend last segment to end if ≤10 seconds from episode end
         if let last = merged.last, episodeDuration > 0, (episodeDuration - last.endTime) <= 10 {
-            merged[merged.count - 1] = DetectedAdSegment(
+            merged[merged.count - 1] = AdSegment(
                 startTime: last.startTime,
                 endTime: episodeDuration,
                 confidence: last.confidence,
@@ -367,7 +342,7 @@ final class AdDetectionService {
         blockStart: TimeInterval,
         blockDuration: TimeInterval,
         groqKey: String
-    ) async throws -> [DetectedAdSegment] {
+    ) async throws -> [AdSegment] {
         // Extract audio for this block
         guard let audioData = try await extractAudioChunk(asset: asset, start: blockStart, duration: blockDuration) else {
             logger.warning("Failed to extract block at \(blockStart)s, skipping")
@@ -396,7 +371,7 @@ final class AdDetectionService {
         chunkDuration: TimeInterval,
         isSpedUp: Bool,
         groqKey: String
-    ) async throws -> [DetectedAdSegment] {
+    ) async throws -> [AdSegment] {
         // Split transcript into ~1 minute chunks (estimate: ~150 words per minute)
         let wordsPerMinute = 150
         let words = transcript.split(separator: " ")
@@ -419,13 +394,7 @@ final class AdDetectionService {
         }
         
         // Split into 1-minute chunks for Stage 1
-        // Make struct Sendable for task group
-        struct ChunkData: Sendable {
-            let text: String
-            let startMinute: Int
-        }
-        
-        var minuteChunks: [ChunkData] = []
+        var minuteChunks: [(text: String, startMinute: Int)] = []
         var currentChunk: [String.SubSequence] = []
         var currentMinute = 0
         
@@ -433,7 +402,7 @@ final class AdDetectionService {
             currentChunk.append(word)
             
             if currentChunk.count >= wordsPerMinute || index == words.count - 1 {
-                minuteChunks.append(ChunkData(text: currentChunk.joined(separator: " "), startMinute: currentMinute))
+                minuteChunks.append((text: currentChunk.joined(separator: " "), startMinute: currentMinute))
                 currentChunk = []
                 currentMinute += 1
             }
@@ -442,7 +411,7 @@ final class AdDetectionService {
         logger.info("Stage 1: Checking \(minuteChunks.count) minute-chunks with Llama 8B")
         
         // Stage 1: Quick yes/no check with Llama 8B (parallel)
-        var chunksWithAds: [ChunkData] = []
+        var chunksWithAds: [(text: String, startMinute: Int)] = []
         
         try await withThrowingTaskGroup(of: (Int, Bool).self) { group in
             for (index, chunk) in minuteChunks.enumerated() {
@@ -466,9 +435,9 @@ final class AdDetectionService {
         }
         
         // Stage 2: Get accurate timestamps for chunks with ads using Llama 70B (parallel)
-        var allSegments: [DetectedAdSegment] = []
+        var allSegments: [AdSegment] = []
         
-        try await withThrowingTaskGroup(of: [DetectedAdSegment].self) { group in
+        try await withThrowingTaskGroup(of: [AdSegment].self) { group in
             for chunk in chunksWithAds {
                 group.addTask {
                     let minuteStartTime = TimeInterval(chunk.startMinute * 60)
@@ -530,7 +499,7 @@ final class AdDetectionService {
         chunkDuration: TimeInterval,
         isSpedUp: Bool,
         groqKey: String
-    ) async throws -> [DetectedAdSegment] {
+    ) async throws -> [AdSegment] {
         let speedNote = isSpedUp ? """
         
         IMPORTANT: The audio was processed at 2x speed. Return timestamps as if the audio was at normal speed.
@@ -596,7 +565,7 @@ final class AdDetectionService {
         if let parsed = try? JSONDecoder().decode(TimestampResponse.self, from: data),
            let segments = parsed.segments {
             return segments.map { seg in
-                DetectedAdSegment(
+                AdSegment(
                     startTime: seg.start_time,
                     endTime: seg.end_time,
                     confidence: seg.confidence ?? 0.8,
@@ -605,6 +574,27 @@ final class AdDetectionService {
                     brandOrOffer: seg.brand_or_offer,
                     evidenceExcerpt: seg.evidence_excerpt,
                     reasoning: seg.reasoning
+                )
+            }
+        }
+        
+        // Try parsing as raw JSON
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let segmentsArray = json["segments"] as? [[String: Any]] {
+            return segmentsArray.compactMap { dict -> AdSegment? in
+                guard let startTime = dict["start_time"] as? Double,
+                      let endTime = dict["end_time"] as? Double else {
+                    return nil
+                }
+                return AdSegment(
+                    startTime: startTime,
+                    endTime: endTime,
+                    confidence: dict["confidence"] as? Double ?? 0.8,
+                    label: dict["ad_type"] as? String ?? "Ad",
+                    adType: dict["ad_type"] as? String,
+                    brandOrOffer: dict["brand_or_offer"] as? String,
+                    evidenceExcerpt: dict["evidence_excerpt"] as? String,
+                    reasoning: dict["reasoning"] as? String
                 )
             }
         }
@@ -618,8 +608,6 @@ final class AdDetectionService {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("ad-chunk-\(UUID().uuidString).m4a")
         
-
-        
         guard let exporter = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else {
             logger.error("Failed to create AVAssetExportSession")
             return nil
@@ -631,11 +619,6 @@ final class AdDetectionService {
             start: CMTime(seconds: start, preferredTimescale: 600),
             duration: CMTime(seconds: duration, preferredTimescale: 600)
         )
-        
-        // Use a detached task to avoid capturing non-Sendable exporter in a way that Swift 6 dislikes?
-        // Actually, just awaiting the export inside this actor-isolated function should be fine 
-        // IF we don't pass exporter to a separate unstructured Task closure that escapes.
-        // The export() helper I wrote uses a closure for the older API.
         
         try await export(assetExporter: exporter)
         
@@ -650,22 +633,6 @@ final class AdDetectionService {
     }
     
     // MARK: - Helper Methods
-    
-    private func convertToModel(_ dto: DetectedAdSegment) -> AdSegment {
-        // Must be called on MainActor if AdSegment is bound to a context, but here AdSegment init is just an object.
-        // However, standard says @Model classes are MainActor bound often. 
-        // We will call this from MainActor block in analyze().
-        return AdSegment(
-            startTime: dto.startTime,
-            endTime: dto.endTime,
-            confidence: dto.confidence,
-            label: dto.label,
-            adType: dto.adType,
-            brandOrOffer: dto.brandOrOffer,
-            evidenceExcerpt: dto.evidenceExcerpt,
-            reasoning: dto.reasoning
-        )
-    }
     
     private func ensureLocalFile(for context: EpisodeDetectionContext) async -> URL? {
         if context.isDownloaded, let path = context.localFilePath {
@@ -717,18 +684,20 @@ final class AdDetectionService {
         if #available(iOS 18.0, *) {
             try await assetExporter.export(to: outputURL, as: outputFileType)
         } else {
-            // To avoid capture of non-Sendable assetExporter in closure:
-            // We can wait in a loop or use KVO, but simple way is just using the closure carefully.
-            // If strict 6 mode complains, we can verify if AVAssetExportSession is actually not sendable. 
-            // It is not. But we are in a non-isolated or actor context? AdDetectionService is final class -> non-isolated by default unless global actor.
-            // Let's assume we can suppress or just ignore if it works, BUT user complained.
-            // Fix: Use the Polling or Timer approach if closure capture is banned? No, just use 'await' if possible.
-            // The available(iOS 18) covers new devices. For older...
-            // We can capture it if we ensure we don't cross boundaries.
-            
-            await assetExporter.export()
-            if let error = assetExporter.error {
-                 throw error
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                assetExporter.exportAsynchronously {
+                    if let error = assetExporter.error {
+                        continuation.resume(throwing: error)
+                    } else if assetExporter.status == .completed {
+                        continuation.resume()
+                    } else {
+                        continuation.resume(throwing: assetExporter.error ?? NSError(
+                            domain: "AdDetection",
+                            code: -2,
+                            userInfo: [NSLocalizedDescriptionKey: "Export failed"]
+                        ))
+                    }
+                }
             }
         }
     }
@@ -738,25 +707,5 @@ final class AdDetectionService {
             episode?.adDetectionStatus = status
             episode?.adDetectionError = error
         }
-    }
-
-    /// Manually download the first N bytes of a remote file to a temp location
-    private func downloadPartialAudio(url: URL, limitBytes: Int64) async throws -> URL? {
-        var request = URLRequest(url: url)
-        request.setValue("bytes=0-\(limitBytes)", forHTTPHeaderField: "Range")
-        
-        let tempDir = FileManager.default.temporaryDirectory
-        // Use mp3 extension as generic container; AVURLAsset handles content sniffing usually
-        let tempFile = tempDir.appendingPathComponent("partial-ad-check-\(UUID().uuidString).mp3")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        if let httpResponse = response as? HTTPURLResponse, 
-           (200...299).contains(httpResponse.statusCode) {
-            try data.write(to: tempFile)
-            return tempFile
-        }
-        
-        return nil
     }
 }

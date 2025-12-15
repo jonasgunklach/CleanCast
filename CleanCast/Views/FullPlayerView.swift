@@ -9,7 +9,8 @@ struct FullPlayerView: View {
     @State private var selectedTab = 0
     
     // Drag to dismiss state
-    @State private var dragOffset: CGSize = .zero
+    @GestureState private var dragOffset: CGFloat = 0
+    @State private var committedOffset: CGFloat = 0
     
     var body: some View {
         GeometryReader { geometry in
@@ -34,211 +35,208 @@ struct FullPlayerView: View {
                     Color.black.ignoresSafeArea()
                 }
                 
-                TabView(selection: $selectedTab) {
-                    // Page 0: Player Controls
-                    VStack(spacing: 30) {
-                        // Drag Handle
-                        Capsule()
-                            .fill(Color.secondary.opacity(0.3))
-                            .frame(width: 60, height: 5)
-                            .padding(.top, 10)
-                        
-                        Spacer()
-                        
-                        // Artwork
-                        if let url = audioManager.currentEpisode?.podcast?.imageURL {
-                             let size = max(0, geometry.size.width - 60)
-                             AsyncImage(url: url) { image in
-                                 image.resizable().aspectRatio(contentMode: .fill)
-                             } placeholder: {
-                                 Color.gray.opacity(0.3)
-                             }
-                             .frame(width: size, height: size)
-                             .cornerRadius(12)
-                             .shadow(radius: 20)
-                             .scaleEffect(audioManager.isPlaying ? 1.0 : 0.75)
-                             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: audioManager.isPlaying)
-                        } else {
-                             let size = max(0, geometry.size.width - 60)
-                             RoundedRectangle(cornerRadius: 12)
-                                 .fill(Color.gray.opacity(0.3))
+                // Horizontal Paging ScrollView
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 0) {
+                        // Page 0: Player Controls
+                        VStack(spacing: 30) {
+                            // Drag Handle
+                            Capsule()
+                                .fill(Color.secondary.opacity(0.3))
+                                .frame(width: 60, height: 5)
+                                .padding(.top, 10)
+                            
+                            
+                            
+                            // Artwork
+                            if let url = audioManager.currentEpisode?.podcast?.imageURL {
+                                 let size = max(0, geometry.size.width - 60)
+                                 AsyncImage(url: url) { image in
+                                     image.resizable().aspectRatio(contentMode: .fill)
+                                 } placeholder: {
+                                     Color.gray.opacity(0.3)
+                                 }
                                  .frame(width: size, height: size)
+                                 .cornerRadius(12)
+                                 .shadow(radius: 20)
                                  .scaleEffect(audioManager.isPlaying ? 1.0 : 0.75)
                                  .animation(.spring(response: 0.5, dampingFraction: 0.7), value: audioManager.isPlaying)
-                        }
-                        
-                        // Info
-                        VStack(spacing: 8) {
-                            Text(audioManager.currentEpisode?.title ?? "Not Playing")
-                                .font(.title2.bold())
-                                .multilineTextAlignment(.center)
-                                .lineLimit(2)
-                                .foregroundStyle(.white) // Ensure white text on dark blurred background
-                            
-                            Text(audioManager.currentEpisode?.podcast?.title ?? "")
-                                .font(.headline)
-                                .foregroundStyle(.white.opacity(0.7))
-                                .lineLimit(1)
-                        }
-                        .padding(.horizontal)
-                        
-                        // Progress
-                        VStack(spacing: 8) {
-                            Slider(value: $sliderValue, in: 0...(audioManager.duration > 0 ? audioManager.duration : 1)) { editing in
-                                isDragging = editing
-                                if !editing {
-                                    audioManager.seek(to: sliderValue)
-                                }
+                            } else {
+                                 let size = max(0, geometry.size.width - 60)
+                                 RoundedRectangle(cornerRadius: 12)
+                                     .fill(Color.gray.opacity(0.3))
+                                     .frame(width: size, height: size)
+                                     .scaleEffect(audioManager.isPlaying ? 1.0 : 0.75)
+                                     .animation(.spring(response: 0.5, dampingFraction: 0.7), value: audioManager.isPlaying)
                             }
-                            .tint(.white) 
-                            .background(
-                                GeometryReader { geometry in
-                                    ZStack(alignment: .leading) {
-                                        if let segments = audioManager.currentEpisode?.adSegments, audioManager.duration > 0 {
-                                            ForEach(segments) { segment in
-                                                let startPercent = segment.startTime / audioManager.duration
-                                                let endPercent = segment.endTime / audioManager.duration
-                                                let width = (endPercent - startPercent) * geometry.size.width
-                                                let startOffset = startPercent * geometry.size.width
-                                                
-                                                Rectangle()
-                                                    .fill(Color.yellow.opacity(0.8))
-                                                    .frame(width: max(2, width), height: 4)
-                                                    .offset(x: startOffset)
+                            
+                            // Info
+                            VStack(spacing: 8) {
+                                Text(audioManager.currentEpisode?.title ?? "Not Playing")
+                                    .font(.title2.bold())
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                                    .foregroundStyle(.white)
+                                
+                                Text(audioManager.currentEpisode?.podcast?.title ?? "")
+                                    .font(.headline)
+                                    .foregroundStyle(.white.opacity(0.7))
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal)
+                            
+                            // Progress
+                            VStack(spacing: 8) {
+                                Slider(value: $sliderValue, in: 0...(audioManager.duration > 0 ? audioManager.duration : 1)) { editing in
+                                    isDragging = editing
+                                    if !editing {
+                                        audioManager.seek(to: sliderValue)
+                                    }
+                                }
+                                .tint(.white) 
+                                .background(
+                                    GeometryReader { sliderGeo in
+                                        ZStack(alignment: .leading) {
+                                            if let segments = audioManager.currentEpisode?.adSegments, audioManager.duration > 0 {
+                                                ForEach(segments) { segment in
+                                                    let startPercent = segment.startTime / audioManager.duration
+                                                    let endPercent = segment.endTime / audioManager.duration
+                                                    let width = (endPercent - startPercent) * sliderGeo.size.width
+                                                    let startOffset = startPercent * sliderGeo.size.width
+                                                    
+                                                    Rectangle()
+                                                        .fill(Color.yellow.opacity(0.8))
+                                                        .frame(width: max(2, width), height: 4)
+                                                        .offset(x: startOffset)
+                                                }
                                             }
                                         }
+                                        .frame(height: 4)
+                                        .offset(y: 14) // Rough alignment for standard slider
                                     }
-                                    .frame(height: 4)
-                                    .offset(y: 14)
+                                )
+                                .overlay(alignment: .top) {
+                                     if isDragging {
+                                         Text(format(sliderValue))
+                                             .font(.system(size: 14, weight: .bold))
+                                             .foregroundStyle(.black)
+                                             .padding(8)
+                                             .background(Capsule().fill(Color.white))
+                                             .offset(y: -40)
+                                             .transition(.opacity)
+                                     }
                                 }
-                            )
-                            .overlay(alignment: .top) {
-                                 if isDragging {
-                                     Text(format(sliderValue))
-                                         .font(.system(size: 14, weight: .bold))
-                                         .foregroundStyle(.black)
-                                         .padding(8)
-                                         .background(Capsule().fill(Color.white))
-                                         .offset(y: -40)
-                                         .transition(.opacity)
-                                 }
+                                
+                                HStack {
+                                    Text(format(audioManager.currentTime))
+                                    Spacer()
+                                    Text(format(audioManager.duration))
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.7))
                             }
+                            .padding(.horizontal, 30)
                             
-                            HStack {
-                                Text(format(audioManager.currentTime))
-                                Spacer()
-                                Text(format(audioManager.duration))
-                            }
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.7))
-                        }
-                        .padding(.horizontal, 30)
-                        
-                        // Controls
-                        HStack(spacing: 50) {
-                            Button {
-                                audioManager.seek(to: audioManager.currentTime - 15)
-                            } label: {
-                                Image(systemName: "gobackward.15")
-                                    .font(.largeTitle)
-                            }
-                            
-                            Button {
-                                audioManager.togglePlayPause()
-                            } label: {
-                                Image(systemName: audioManager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                    .font(.system(size: 70))
-                            }
-                            
-                            Button {
-                                audioManager.seek(to: audioManager.currentTime + 30)
-                            } label: {
-                                Image(systemName: "goforward.30")
-                                    .font(.largeTitle)
-                            }
-                        }
-                        .foregroundStyle(.white)
-                        
-                        // Bottom Actions (Speed, Sleep) - RESTORED
-                        HStack(spacing: 40) {
-                            // Speed
-                            Menu {
-                                Picker("Speed", selection: Bindable(audioManager).playbackRate) {
-                                    ForEach([0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 1.7, 2.0], id: \.self) { rate in
-                                        Text("\(String(format: "%.1fx", rate))").tag(Float(rate))
+                            // Controls (Merged)
+                            HStack(spacing: 30) {
+                                // Speed (Left)
+                                Menu {
+                                    Picker("Speed", selection: Bindable(audioManager).playbackRate) {
+                                        ForEach([0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 1.7, 2.0], id: \.self) { rate in
+                                            Text("\(String(format: "%.1fx", rate))").tag(Float(rate))
+                                        }
                                     }
+                                } label: {
+                                    Image(systemName: "speedometer")
+                                        .font(.title2)
+                                        .foregroundStyle(.white.opacity(0.8))
+                                        .frame(width: 44, height: 44)
                                 }
-                            } label: {
-                                VStack(spacing: 4) {
-                                    Text("\(String(format: "%.1fx", audioManager.playbackRate))")
-                                        .font(.system(size: 14, weight: .bold))
-                                    Text("Speed")
-                                        .font(.caption2)
+                                
+                                Button {
+                                    audioManager.seek(to: audioManager.currentTime - 15)
+                                } label: {
+                                    Image(systemName: "gobackward.15")
+                                        .font(.largeTitle)
                                 }
-                                .foregroundStyle(.white.opacity(0.8))
-                                .padding(8)
-                                .background(Color.white.opacity(0.1))
-                                .cornerRadius(8)
-                            }
-                            
-                            // Sleep Timer
-                            Menu {
-                                Button("Off") { audioManager.invalidateSleepTimer() }
-                                Button("5 min") { audioManager.startSleepTimer(minutes: 5) }
-                                Button("10 min") { audioManager.startSleepTimer(minutes: 10) }
-                                Button("15 min") { audioManager.startSleepTimer(minutes: 15) }
-                                Button("30 min") { audioManager.startSleepTimer(minutes: 30) }
-                            } label: {
-                                VStack(spacing: 4) {
+                                
+                                Button {
+                                    audioManager.togglePlayPause()
+                                } label: {
+                                    Image(systemName: audioManager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                                        .font(.system(size: 70))
+                                }
+                                
+                                Button {
+                                    audioManager.seek(to: audioManager.currentTime + 30)
+                                } label: {
+                                    Image(systemName: "goforward.30")
+                                        .font(.largeTitle)
+                                }
+                                
+                                // Sleep (Right)
+                                Menu {
+                                    Button("Off") { audioManager.invalidateSleepTimer() }
+                                    Button("5 min") { audioManager.startSleepTimer(minutes: 5) }
+                                    Button("10 min") { audioManager.startSleepTimer(minutes: 10) }
+                                    Button("15 min") { audioManager.startSleepTimer(minutes: 15) }
+                                    Button("30 min") { audioManager.startSleepTimer(minutes: 30) }
+                                } label: {
                                     Image(systemName: audioManager.sleepTimer != nil ? "moon.fill" : "moon")
-                                        .font(.system(size: 18))
-                                    Text(audioManager.sleepTimer != nil ? "On" : "Sleep")
-                                        .font(.caption2)
+                                        .font(.title2)
+                                        .foregroundStyle(audioManager.sleepTimer != nil ? .yellow : .white.opacity(0.8))
+                                        .frame(width: 44, height: 44)
                                 }
-                                .foregroundStyle(audioManager.sleepTimer != nil ? .yellow : .white.opacity(0.8))
-                                .padding(8)
-                                .background(Color.white.opacity(0.1))
-                                .cornerRadius(8)
                             }
+                            .foregroundStyle(.white)
+                            .padding(.bottom, 60)
                         }
-                        .padding(.bottom, 60) // Increased padding to clear tab dots
+                        .containerRelativeFrame(.horizontal)
+                        
+                        // Page 1: Up Next Queue
+                        UpNextView()
+                            .containerRelativeFrame(.horizontal)
+                        
                     }
-                    .tag(0)
-                    
-                    // Page 1: Up Next Queue
-                    UpNextView()
-                        .tag(1)
-                    
-                    // Page 2: Transcript - RESTORED
-                    //if let episode = audioManager.currentEpisode {
-                    //    TranscriptView(episode: episode)
-                    //        .tag(2)
-                    //}
+                    .scrollTargetLayout()
                 }
-                .tabViewStyle(.page(indexDisplayMode: .always))
+                .scrollTargetBehavior(.paging)
+                .scrollIndicators(.hidden)
             }
-            .offset(y: dragOffset.height) // Apply drag offset
-            .highPriorityGesture( // changed to highPriorityGesture for better responsiveness
-                DragGesture()
-                    .onChanged { gesture in
-                        if gesture.translation.height > 0 {
-                            dragOffset = gesture.translation
-                        }
+            .offset(y: committedOffset + dragOffset)
+            .scaleEffect(1.0 - (dragOffset / geometry.size.height) * 0.15)
+            .opacity(1.0 - (dragOffset / geometry.size.height) * 0.5)
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 3, coordinateSpace: .global)
+                    .updating($dragOffset) { value, state, _ in
+                        guard abs(value.translation.height) > abs(value.translation.width) else { return }
+                        state = max(0, value.translation.height)
                     }
-                    .onEnded { gesture in
-                        if gesture.translation.height > 100 {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                showFullPlayer = false
+                    .onEnded { value in
+                        let y = max(0, value.translation.height)
+                        let v = value.velocity.height
+                        let shouldDismiss = (y > 120) || (v > 900)
+                        
+                        if shouldDismiss {
+                            // Immediately show mini player
+                            showFullPlayer = false
+                            // Commit and animate full player away
+                            committedOffset = y
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                committedOffset = geometry.size.height
                             }
-                            dragOffset = .zero
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                committedOffset = 0
+                            }
                         } else {
-                            withAnimation(.spring()) {
-                                dragOffset = .zero
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                                committedOffset = 0
                             }
                         }
                     }
             )
         }
+        .ignoresSafeArea()
         .preferredColorScheme(.dark) // Force dark mode for readability against blurred background
         .onAppear {
             sliderValue = audioManager.currentTime
