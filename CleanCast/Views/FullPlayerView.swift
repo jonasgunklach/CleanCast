@@ -58,19 +58,22 @@ struct FullPlayerView: View {
                                         .onEnded { value in
                                             let y = max(0, value.translation.height)
                                             let v = value.velocity.height
-                                            let shouldDismiss = (y > 150) || (v > 1000)
+                                            let shouldDismiss = (y > 120) || (v > 900)
                                             
                                             if shouldDismiss {
-                                                showFullPlayer = false
+                                                // Commit current drag position
                                                 committedOffset = y
+                                                // Then animate from there to off-screen
                                                 withAnimation(.easeOut(duration: 0.25)) {
                                                     committedOffset = geometry.size.height
                                                 }
+                                                // Dismiss after animation
                                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                                    showFullPlayer = false
                                                     committedOffset = 0
                                                 }
                                             } else {
-                                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                                                     committedOffset = 0
                                                 }
                                             }
