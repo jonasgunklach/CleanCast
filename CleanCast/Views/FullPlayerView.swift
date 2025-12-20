@@ -41,45 +41,16 @@ struct FullPlayerView: View {
                     LazyHStack(spacing: 0) {
                         // Page 0: Player Controls
                         VStack(spacing: 30) {
-                            // Drag Handle (with dismiss gesture)
-                            Capsule()
+                            // Draggable Top Area
+                            VStack(spacing: 30) {
+                                // Drag Handle
+                                Capsule()
                                 .fill(Color.secondary.opacity(0.3))
                                 .frame(width: 60, height: 5)
                                 .padding(.top, 10)
                                 .padding(.bottom, 20)
                                 .padding(.vertical, 25)
                                 .contentShape(Rectangle())
-                                .gesture(
-                                    DragGesture(minimumDistance: 0, coordinateSpace: .global)
-                                        .updating($dragOffset) { value, state, _ in
-                                            // Only vertical drags on the handle
-                                            guard value.translation.height > 0 else { return }
-                                            state = value.translation.height
-                                        }
-                                        .onEnded { value in
-                                            let y = max(0, value.translation.height)
-                                            let v = value.velocity.height
-                                            let shouldDismiss = (y > 120) || (v > 900)
-                                            
-                                            if shouldDismiss {
-                                                // Commit current drag position
-                                                committedOffset = y
-                                                // Then animate from there to off-screen
-                                                withAnimation(.easeOut(duration: 0.25)) {
-                                                    committedOffset = geometry.size.height
-                                                }
-                                                // Dismiss after animation
-                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                                    showFullPlayer = false
-                                                    committedOffset = 0
-                                                }
-                                            } else {
-                                                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                                                    committedOffset = 0
-                                                }
-                                            }
-                                        }
-                                )
                             
                             
                             
@@ -118,7 +89,37 @@ struct FullPlayerView: View {
                                     .foregroundStyle(.white.opacity(0.7))
                                     .lineLimit(1)
                             }
+                            }
                             .padding(.horizontal)
+                            .contentShape(Rectangle())
+                            .gesture(
+                                DragGesture(minimumDistance: 30, coordinateSpace: .global)
+                                    .updating($dragOffset) { value, state, _ in
+                                        // Only vertical drags
+                                        guard value.translation.height > 0 else { return }
+                                        state = value.translation.height
+                                    }
+                                    .onEnded { value in
+                                        let y = max(0, value.translation.height)
+                                        let v = value.velocity.height
+                                        let shouldDismiss = (y > 120) || (v > 900)
+                                        
+                                        if shouldDismiss {
+                                            committedOffset = y
+                                            withAnimation(.easeOut(duration: 0.25)) {
+                                                committedOffset = geometry.size.height
+                                            }
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                                showFullPlayer = false
+                                                committedOffset = 0
+                                            }
+                                        } else {
+                                            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                                                committedOffset = 0
+                                            }
+                                        }
+                                    }
+                            )
                             
                             // Progress
                             VStack(spacing: 8) {
@@ -252,7 +253,7 @@ struct FullPlayerView: View {
                             .fill((scrollPosition ?? 0) == 1 ? Color.white : Color.white.opacity(0.3))
                             .frame(width: 8, height: 8)
                     }
-                    .padding(.bottom, 80)
+                    .padding(.bottom, 30)
                 }
             }
             .offset(y: committedOffset + dragOffset)
