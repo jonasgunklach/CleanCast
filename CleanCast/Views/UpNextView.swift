@@ -5,6 +5,7 @@ struct UpNextView: View {
     @Environment(AudioManager.self) private var audioManager
     @Environment(\.dismiss) var dismiss
     @State private var editMode: EditMode = .inactive
+    var accentColor: Color?
     
     var body: some View {
         VStack {
@@ -17,6 +18,7 @@ struct UpNextView: View {
                         editMode = editMode == .active ? .inactive : .active
                     }
                 }
+                .foregroundStyle(accentColor ?? .primary)
             }
             .padding()
             .padding(.top, 40)

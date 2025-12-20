@@ -16,24 +16,24 @@ struct FullPlayerView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // 1. Solid Base Background (prevents transparency)
-                Color.black.ignoresSafeArea()
-                
-                // 2. Dynamic Blurred Background
-                if let url = audioManager.currentEpisode?.podcast?.imageURL {
-                    AsyncImage(url: url) { image in
-                        image.resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: geometry.size.width, height: geometry.size.height)
-                            .clipped()
-                            .blur(radius: 50)
-                            .overlay(Color.black.opacity(0.4))
-                            .ignoresSafeArea()
-                    } placeholder: {
-                        Color.black.ignoresSafeArea()
+                // 1. Dynamic Background
+                ZStack {
+                    if let colors = artworkColors {
+                        // Base gradient
+                        LinearGradient(
+                            colors: [
+                                colors.primary.opacity(colorScheme == .dark ? 0.6 : 0.3),
+                                colors.secondary.opacity(colorScheme == .dark ? 0.4 : 0.2)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .ignoresSafeArea()
+                        // Minimal blur effect via Material
+                        .overlay(colorScheme == .dark ? .ultraThinMaterial : .regularMaterial)
+                    } else {
+                        Color(UIColor.systemBackground).ignoresSafeArea()
                     }
-                } else {
-                    Color.black.ignoresSafeArea()
                 }
                 
                 // Horizontal Paging ScrollView
@@ -82,11 +82,11 @@ struct FullPlayerView: View {
                                     .font(.title2.bold())
                                     .multilineTextAlignment(.center)
                                     .lineLimit(2)
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(.primary)
                                 
                                 Text(audioManager.currentEpisode?.podcast?.title ?? "")
                                     .font(.headline)
-                                    .foregroundStyle(.white.opacity(0.7))
+                                    .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
                             }
@@ -129,7 +129,7 @@ struct FullPlayerView: View {
                                         audioManager.seek(to: sliderValue)
                                     }
                                 }
-                                .tint(.white) 
+                                .tint(artworkColors?.accent ?? .primary) 
                                 .background(
                                     GeometryReader { sliderGeo in
                                         ZStack(alignment: .leading) {
@@ -155,9 +155,9 @@ struct FullPlayerView: View {
                                      if isDragging {
                                          Text(format(sliderValue))
                                              .font(.system(size: 14, weight: .bold))
-                                             .foregroundStyle(.black)
+                                             .foregroundStyle(Color(UIColor.systemBackground)) // Inverse text
                                              .padding(8)
-                                             .background(Capsule().fill(Color.white))
+                                             .background(Capsule().fill(Color.primary)) // Inverse bg
                                              .offset(y: -40)
                                              .transition(.opacity)
                                      }
@@ -169,7 +169,7 @@ struct FullPlayerView: View {
                                     Text(format(audioManager.duration))
                                 }
                                 .font(.caption)
-                                .foregroundStyle(.white.opacity(0.7))
+                                .foregroundStyle(.secondary)
                             }
                             .padding(.horizontal, 30)
                             
@@ -185,7 +185,7 @@ struct FullPlayerView: View {
                                 } label: {
                                     Image(systemName: "speedometer")
                                         .font(.title2)
-                                        .foregroundStyle(.white.opacity(0.8))
+                                        .foregroundStyle(artworkColors?.accent ?? .secondary)
                                         .frame(width: 44, height: 44)
                                 }
                                 
@@ -194,6 +194,7 @@ struct FullPlayerView: View {
                                 } label: {
                                     Image(systemName: "gobackward.15")
                                         .font(.largeTitle)
+                                        .foregroundStyle(artworkColors?.accent ?? .primary)
                                 }
                                 
                                 Button {
@@ -201,6 +202,7 @@ struct FullPlayerView: View {
                                 } label: {
                                     Image(systemName: audioManager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                                         .font(.system(size: 70))
+                                        .foregroundStyle(artworkColors?.accent ?? .primary)
                                 }
                                 
                                 Button {
@@ -208,6 +210,7 @@ struct FullPlayerView: View {
                                 } label: {
                                     Image(systemName: "goforward.30")
                                         .font(.largeTitle)
+                                        .foregroundStyle(artworkColors?.accent ?? .primary)
                                 }
                                 
                                 // Sleep (Right)
@@ -220,18 +223,17 @@ struct FullPlayerView: View {
                                 } label: {
                                     Image(systemName: audioManager.sleepTimer != nil ? "moon.fill" : "moon")
                                         .font(.title2)
-                                        .foregroundStyle(audioManager.sleepTimer != nil ? .yellow : .white.opacity(0.8))
+                                        .foregroundStyle(audioManager.sleepTimer != nil ? .yellow : (artworkColors?.accent ?? .secondary))
                                         .frame(width: 44, height: 44)
                                 }
                             }
-                            .foregroundStyle(.white)
                             .padding(.bottom, 60)
                         }
                         .containerRelativeFrame(.horizontal)
                         .id(0)
                         
                         // Page 1: Up Next Queue
-                        UpNextView()
+                        UpNextView(accentColor: artworkColors?.accent)
                             .containerRelativeFrame(.horizontal)
                             .id(1)
                         
@@ -247,10 +249,10 @@ struct FullPlayerView: View {
                     Spacer()
                     HStack(spacing: 8) {
                         Circle()
-                            .fill((scrollPosition ?? 0) == 0 ? Color.white : Color.white.opacity(0.3))
+                            .fill((scrollPosition ?? 0) == 0 ? Color.primary : Color.secondary.opacity(0.3))
                             .frame(width: 8, height: 8)
                         Circle()
-                            .fill((scrollPosition ?? 0) == 1 ? Color.white : Color.white.opacity(0.3))
+                            .fill((scrollPosition ?? 0) == 1 ? Color.primary : Color.secondary.opacity(0.3))
                             .frame(width: 8, height: 8)
                     }
                     .padding(.bottom, 30)
@@ -261,14 +263,49 @@ struct FullPlayerView: View {
             .opacity(1.0 - (dragOffset / geometry.size.height) * 0.5)
         }
         .ignoresSafeArea()
-        //.preferredColorScheme(.dark) // Force dark mode for readability against blurred background
         .onAppear {
             sliderValue = audioManager.currentTime
+            extractColors()
         }
         .onChange(of: audioManager.currentTime) { _, newValue in
              if !isDragging {
                  sliderValue = newValue
              }
+        }
+        .onChange(of: audioManager.currentEpisode) {
+            extractColors()
+        }
+    }
+    
+    // MARK: - Color Extraction
+    @State private var artworkColors: ArtworkColors?
+    
+    private func extractColors() {
+        guard let episode = audioManager.currentEpisode, let url = episode.podcast?.imageURL else { return }
+        
+        // 1. Check Cache
+        if let bgHex = episode.podcast?.backgroundColorHex,
+           let bg = Color(hex: bgHex) {
+            let accent = (episode.podcast?.accentColorHex).flatMap { Color(hex: $0) } ?? .pink
+            self.artworkColors = ArtworkColors(primary: bg, secondary: accent, accent: accent)
+            return
+        }
+        
+        // 2. Extract
+        Task {
+            if let (data, _) = try? await URLSession.shared.data(from: url),
+               let uiImage = UIImage(data: data) {
+                let colors = await Task.detached {
+                    ArtworkColorExtractor.shared.extractColors(from: uiImage)
+                }.value
+                
+                await MainActor.run {
+                    self.artworkColors = colors
+                    // Cache
+                    episode.podcast?.backgroundColorHex = colors.primary.toHex()
+                    episode.podcast?.accentColorHex = colors.accent.toHex()
+                }
+            }
         }
     }
     
