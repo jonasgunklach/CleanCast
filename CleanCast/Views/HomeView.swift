@@ -341,6 +341,14 @@ struct HomeEpisodeCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 10)
         .contextMenu {
+            NavigationLink {
+                EpisodeDetailView(episode: episode, artworkColors: artworkColors)
+            } label: {
+                Label("See episode", systemImage: "info.circle")
+            }
+            
+            Divider()
+            
             Button {
                 audioManager.addToQueue(episode, next: true)
             } label: {
@@ -353,6 +361,7 @@ struct HomeEpisodeCard: View {
                 Label("Add to Queue", systemImage: "text.append")
             }
         }
+        .tint(artworkColors.primary)
         .onAppear {
             extractColors()
         }

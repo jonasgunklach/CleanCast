@@ -94,6 +94,51 @@ struct PodcastDetailView: View {
                          EpisodeRow(episode: episode, artworkColors: artworkColors)
                              .contentShape(Rectangle())
                      }
+                     .contextMenu {
+                         Button {
+                             audioManager.addToQueue(episode, next: true)
+                         } label: {
+                             Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward")
+                         }
+                         
+                         Button {
+                             audioManager.addToQueue(episode, next: false)
+                         } label: {
+                             Label("Add to Queue", systemImage: "text.append")
+                         }
+                         
+                         Divider()
+                         
+                         Button {
+                             toggleDownload(episode)
+                         } label: {
+                             Label(episode.isDownloaded ? "Remove Download" : "Download", 
+                                   systemImage: episode.isDownloaded ? "trash" : "arrow.down")
+                         }
+                         
+                         Button {
+                             toggleSaved(episode)
+                         } label: {
+                             Label(episode.isSaved ? "Unsave" : "Save", 
+                                   systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
+                         }
+                         
+                         Button {
+                             togglePlayed(episode)
+                         } label: {
+                             Label(episode.playStateRaw == 2 ? "Mark Unplayed" : "Mark Played", 
+                                   systemImage: episode.playStateRaw == 2 ? "circle" : "checkmark.circle")
+                         }
+                         
+                         Divider()
+                         
+                         NavigationLink {
+                             EpisodeDetailView(episode: episode, artworkColors: artworkColors)
+                         } label: {
+                             Label("See episode", systemImage: "info.circle")
+                         }
+                     }
+                     .tint(artworkColors.primary) // Attempt global tint for menu actions
                      .swipeActions(edge: .trailing) {
                          Button {
                              togglePlayed(episode)
