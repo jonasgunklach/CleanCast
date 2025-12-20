@@ -260,7 +260,7 @@ struct FullPlayerView: View {
             .opacity(1.0 - (dragOffset / geometry.size.height) * 0.5)
         }
         .ignoresSafeArea()
-        .preferredColorScheme(.dark) // Force dark mode for readability against blurred background
+        //.preferredColorScheme(.dark) // Force dark mode for readability against blurred background
         .onAppear {
             sliderValue = audioManager.currentTime
         }

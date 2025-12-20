@@ -242,11 +242,11 @@ struct HomeEpisodeCard: View {
                             ProgressView()
                         }
                 }
-                .frame(height: 240)
+                .frame(height: 220)
                 .clipped()
             } else {
                 Color.gray.opacity(0.3)
-                    .frame(height: 240)
+                    .frame(height: 220)
                     .overlay {
                         Image(systemName: "music.note")
                             .foregroundColor(.gray)
