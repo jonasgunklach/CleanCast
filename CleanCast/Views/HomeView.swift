@@ -235,15 +235,17 @@ struct HomeEpisodeCard: View {
             if let url = episode.podcast?.imageURL {
                 AsyncImage(url: url) { image in
                     image.resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .aspectRatio(contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        //.shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
                 } placeholder: {
                     Color.gray.opacity(0.3)
                         .overlay {
                             ProgressView()
                         }
                 }
-                .frame(height: 220)
-                .clipped()
+                .padding(12) // Smaller border -> larger image
+                .frame(height: 240) // Taller container
             } else {
                 Color.gray.opacity(0.3)
                     .frame(height: 220)
@@ -254,7 +256,7 @@ struct HomeEpisodeCard: View {
                     }
             }
             
-            // Bottom 1/3: Dominant color background with episode info
+            // Bottom 1/3: Episode info
             VStack(alignment: .leading, spacing: 12) {
                 // Episode title
                 Text(episode.title)
@@ -330,10 +332,11 @@ struct HomeEpisodeCard: View {
                 }
             }
             .padding(16)
+            .padding(.top, -8) // Pull up slightly closer to image
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: 130)
-            .background(artworkColors.primary) // Dynamic background
         }
+        .background(artworkColors.primary) // Dynamic background applied to whole card
         .frame(width: 300)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 10)
