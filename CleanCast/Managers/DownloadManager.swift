@@ -35,7 +35,7 @@ class DownloadManager: NSObject {
         await MainActor.run {
             episode.isDownloaded = true
             episode.localFilePath = fileURL.path
-            // Context save handled by caller or view
+            try? episode.modelContext?.save()
         }
     }
     
@@ -65,11 +65,18 @@ class DownloadManager: NSObject {
         let globalLimit = UserDefaults.standard.integer(forKey: "downloadCount")
         let defaultLimit = globalLimit > 0 ? globalLimit : 3
         
-        print("DownloadManager: Checking for auto-downloads...")
+        print("DownloadManager: Checking auto-downloads for \(podcasts.count) podcasts...")
         
         for podcast in podcasts {
-            guard podcast.isSubscribed else { continue }
-            guard let episodes = podcast.episodes else { continue }
+            if !podcast.isSubscribed {
+                print("DownloadManager: Skipping \(podcast.title) - Not subscribed")
+                continue
+            }
+            
+            guard let episodes = podcast.episodes else {
+                print("DownloadManager: Skipping \(podcast.title) - No episodes")
+                continue
+            }
             
             // Determine limit: Per-podcast override -> Global Setting
             var effectiveLimit = 0
@@ -83,22 +90,41 @@ class DownloadManager: NSObject {
                      effectiveLimit = defaultLimit
                  } else {
                      // Auto-download disabled globally and no override
+                     print("DownloadManager: Skipping \(podcast.title) - Global disabled and no override")
                      continue
                  }
             }
             
-            if effectiveLimit <= 0 { continue }
+            if effectiveLimit <= 0 {
+                print("DownloadManager: Skipping \(podcast.title) - Effective limit is 0")
+                continue
+            }
             
             // Get unplayed episodes sorted by newest
-            let candidates = episodes
-                .filter { $0.playStateRaw == 0 && !$0.isDownloaded }
-                .sorted { $0.releaseDate > $1.releaseDate }
-                .prefix(effectiveLimit)
+            // Only consider episodes that are NOT played (playStateRaw == 0) and NOT downloaded
+            let sortedEpisodes = episodes.sorted { $0.releaseDate > $1.releaseDate }
+            print("DownloadManager: \(podcast.title) - Total episodes: \(sortedEpisodes.count)")
+            
+            if let topEpisode = sortedEpisodes.first {
+                print("DownloadManager: Top episode: \(topEpisode.title) | PlayState: \(topEpisode.playStateRaw) | Downloaded: \(topEpisode.isDownloaded)")
+            }
+
+            let candidates = sortedEpisodes
+                .filter { $0.playStateRaw != 2 } // 1. Identify all valid candidates (unfinished)
+                .prefix(effectiveLimit)          // 2. Take the "Top N" of those
+                .filter { !$0.isDownloaded }     // 3. Only download the ones we don't have yet
+            
+            print("DownloadManager: \(podcast.title) - Found \(candidates.count) candidates (Limit: \(effectiveLimit))")
             
             for episode in candidates {
                 print("DownloadManager: Auto-downloading \(episode.title)")
                 Task {
-                    try? await download(episode: episode)
+                    do {
+                        try await download(episode: episode)
+                        print("DownloadManager: Successfully downloaded \(episode.title)")
+                    } catch {
+                        print("DownloadManager: Failed to download \(episode.title) - \(error)")
+                    }
                 }
             }
         }

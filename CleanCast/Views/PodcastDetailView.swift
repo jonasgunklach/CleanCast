@@ -14,6 +14,17 @@ struct PodcastDetailView: View {
         if podcast.modelContext == nil {
              modelContext.insert(podcast)
         }
+        
+        // Setting an auto-download limit implies subscription
+        if limit != nil {
+            podcast.isSubscribed = true
+        }
+        
+        // Ensure episodes are persisted for the DownloadManager
+        if !displayedEpisodes.isEmpty {
+            podcast.episodes = displayedEpisodes
+        }
+        
         podcast.autoDownloadLimit = limit
         try? modelContext.save()
         
@@ -339,6 +350,12 @@ struct PodcastDetailView: View {
             modelContext.insert(podcast)
         }
         podcast.isSubscribed = true
+        
+        // Ensure episodes are persisted
+        if !displayedEpisodes.isEmpty {
+            podcast.episodes = displayedEpisodes
+        }
+        
         try? modelContext.save()
     }
 
@@ -361,6 +378,17 @@ struct PodcastDetailView: View {
                     }
                     
                     self.displayedEpisodes = merged.sorted { $0.releaseDate > $1.releaseDate }
+                    
+                    // Sync with model if subscribed, so DownloadManager observes them
+                    if podcast.isSubscribed {
+                        podcast.episodes = merged
+                        // Try to trigger auto-download check immediately after saving
+                        if podcast.autoDownloadLimit != nil {
+                            downloadManager.triggerAutoDownload(for: [podcast])
+                        }
+                    }
+                    
+                    try? modelContext.save()
                 }
             } catch {
                 print("Error loading episodes: \(error)")
