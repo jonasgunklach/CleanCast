@@ -61,7 +61,7 @@ class DownloadManager: NSObject {
     
     // Auto Download Logic
     func triggerAutoDownload(for podcasts: [Podcast]) {
-        guard UserDefaults.standard.bool(forKey: "autoDownloadNewest") else { return }
+        let globalEnabled = UserDefaults.standard.bool(forKey: "autoDownloadNewest")
         let globalLimit = UserDefaults.standard.integer(forKey: "downloadCount")
         let defaultLimit = globalLimit > 0 ? globalLimit : 3
         
@@ -72,7 +72,21 @@ class DownloadManager: NSObject {
             guard let episodes = podcast.episodes else { continue }
             
             // Determine limit: Per-podcast override -> Global Setting
-            let effectiveLimit = podcast.autoDownloadLimit ?? defaultLimit
+            var effectiveLimit = 0
+            
+            if let override = podcast.autoDownloadLimit {
+                 // Explicit override takes precedence
+                 effectiveLimit = override
+            } else {
+                 // Fallback to global setting
+                 if globalEnabled {
+                     effectiveLimit = defaultLimit
+                 } else {
+                     // Auto-download disabled globally and no override
+                     continue
+                 }
+            }
+            
             if effectiveLimit <= 0 { continue }
             
             // Get unplayed episodes sorted by newest
