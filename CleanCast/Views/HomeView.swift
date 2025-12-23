@@ -245,6 +245,7 @@ struct HomeEpisodeCard: View {
                         }
                 }
                 .padding(12) // Smaller border -> larger image
+                .padding(.top, 4)
                 .frame(height: 240) // Taller container
             } else {
                 Color.gray.opacity(0.3)
