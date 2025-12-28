@@ -36,6 +36,9 @@ struct ContentView: View {
                 }
             }
             .id("MainTabs")
+            
+            .tabBarMinimizeBehavior(.onScrollDown)
+            
             // Mini player accessory
             .tabViewBottomAccessory {
                 MiniPlayerView()
