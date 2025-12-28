@@ -10,7 +10,7 @@ class DownloadManager: NSObject {
     // Track active downloads if needed (simple implementation for now)
     
     func download(episode: Episode) async throws {
-        await MainActor.run {
+        _ = await MainActor.run {
              activeDownloads.insert(episode.id)
         }
         
@@ -24,7 +24,9 @@ class DownloadManager: NSObject {
             throw URLError(.badURL)
         }
         
+        let downloadStart = Date()
         let (data, _) = try await URLSession.shared.data(from: url)
+        let downloadTime = Date().timeIntervalSince(downloadStart)
         
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let fileName = "\(episode.id.uuidString).mp3"
@@ -36,6 +38,13 @@ class DownloadManager: NSObject {
             episode.isDownloaded = true
             episode.localFilePath = fileURL.path
             try? episode.modelContext?.save()
+        }
+        
+        print("DownloadManager: Downloaded episode: took \(String(format: "%.1f", downloadTime))s")
+        
+        // Pre-process first 2 blocks (10 min) of ad detection
+        Task.detached {
+            await AdDetectionService.shared.preProcessDownloadedEpisode(episode: episode)
         }
     }
     

@@ -34,7 +34,6 @@ struct HomeView: View {
         
         // 4. Round Robin Interleaving
         var result: [Episode] = []
-        var hasItems = true
         
         // Limit total iteration to prevent infinite loops if something goes wrong, though logic is safe
         // Also simpler: loop while queues not empty
@@ -398,10 +397,8 @@ struct HomeEpisodeCard: View {
             if let (data, _) = try? await URLSession.shared.data(from: url),
                let uiImage = UIImage(data: data) {
                 
-                // Offload to background thread
-                let colors = await Task.detached(priority: .userInitiated) {
-                    return ArtworkColorExtractor.shared.extractColors(from: uiImage)
-                }.value
+                // Extract colors (fast operation)
+                let colors = ArtworkColorExtractor.shared.extractColors(from: uiImage)
                 
                 await MainActor.run {
                     withAnimation(.easeInOut(duration: 0.3)) {

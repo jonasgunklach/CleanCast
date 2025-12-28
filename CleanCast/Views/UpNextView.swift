@@ -69,6 +69,7 @@ struct UpNextView: View {
                                     .lineLimit(1)
                             }
                         }
+                        .listRowBackground(Color.clear)
                     }
                     .onDelete { indexSet in
                         audioManager.removeFromQueue(at: indexSet)

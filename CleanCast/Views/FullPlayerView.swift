@@ -130,27 +130,39 @@ struct FullPlayerView: View {
                                     }
                                 }
                                 .tint(artworkColors?.accent ?? .primary) 
-                                .background(
+                                .overlay(alignment: .topLeading) {
                                     GeometryReader { sliderGeo in
                                         ZStack(alignment: .leading) {
                                             if let segments = audioManager.currentEpisode?.adSegments, audioManager.duration > 0 {
                                                 ForEach(segments) { segment in
                                                     let startPercent = segment.startTime / audioManager.duration
                                                     let endPercent = segment.endTime / audioManager.duration
-                                                    let width = (endPercent - startPercent) * sliderGeo.size.width
+                                                    let markerWidth = max(4, (endPercent - startPercent) * sliderGeo.size.width)
                                                     let startOffset = startPercent * sliderGeo.size.width
                                                     
-                                                    Rectangle()
-                                                        .fill(Color.yellow.opacity(0.8))
-                                                        .frame(width: max(2, width), height: 4)
-                                                        .offset(x: startOffset)
+                                                    RoundedRectangle(cornerRadius: 2)
+                                                        .fill(Color.yellow.opacity(0.9))
+                                                        .frame(width: markerWidth, height: 6)
+                                                        .offset(x: startOffset, y: 12) // Center on slider track
                                                 }
                                             }
                                         }
-                                        .frame(height: 4)
-                                        .offset(y: 14) // Rough alignment for standard slider
+                                        .onAppear {
+                                            // Debug: Log segment positions
+                                            if let segments = audioManager.currentEpisode?.adSegments, !segments.isEmpty {
+                                                print("FullPlayerView: Displaying \(segments.count) ad markers, duration=\(audioManager.duration)")
+                                                for seg in segments {
+                                                    print("  Ad: \(String(format: "%.0f", seg.startTime))-\(String(format: "%.0f", seg.endTime))s (\(String(format: "%.1f", seg.startTime/audioManager.duration*100))%-\(String(format: "%.1f", seg.endTime/audioManager.duration*100))%)")
+                                                }
+                                            }
+                                        }
                                     }
-                                )
+                                }
+                                .onChange(of: audioManager.currentEpisode?.adSegments) { _, newSegments in
+                                    if let segments = newSegments, !segments.isEmpty {
+                                        print("FullPlayerView: Ad segments updated - \(segments.count) segments")
+                                    }
+                                }
                                 .overlay(alignment: .top) {
                                      if isDragging {
                                          Text(format(sliderValue))
@@ -237,6 +249,11 @@ struct FullPlayerView: View {
                             .containerRelativeFrame(.horizontal)
                             .id(1)
                         
+                        // Page 2: Transcript
+                        TranscriptView(accentColor: artworkColors?.accent)
+                            .containerRelativeFrame(.horizontal)
+                            .id(2)
+                        
                     }
                     .scrollTargetLayout()
                 }
@@ -253,6 +270,9 @@ struct FullPlayerView: View {
                             .frame(width: 8, height: 8)
                         Circle()
                             .fill((scrollPosition ?? 0) == 1 ? Color.primary : Color.secondary.opacity(0.3))
+                            .frame(width: 8, height: 8)
+                        Circle()
+                            .fill((scrollPosition ?? 0) == 2 ? Color.primary : Color.secondary.opacity(0.3))
                             .frame(width: 8, height: 8)
                     }
                     .padding(.bottom, 30)
@@ -295,9 +315,7 @@ struct FullPlayerView: View {
         Task {
             if let (data, _) = try? await URLSession.shared.data(from: url),
                let uiImage = UIImage(data: data) {
-                let colors = await Task.detached {
-                    ArtworkColorExtractor.shared.extractColors(from: uiImage)
-                }.value
+                let colors = ArtworkColorExtractor.shared.extractColors(from: uiImage)
                 
                 await MainActor.run {
                     self.artworkColors = colors

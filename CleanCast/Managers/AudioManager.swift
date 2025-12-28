@@ -11,6 +11,7 @@ class AudioManager {
     var currentEpisode: Episode?
     var upNextQueue: [Episode] = []
     var isPlaying: Bool = false
+    var isBuffering: Bool = false  // Loading state while detecting ads
     var currentTime: TimeInterval = 0
     var duration: TimeInterval = 0
     private var timeObserver: Any?
@@ -56,8 +57,90 @@ class AudioManager {
             try session.setCategory(.playback, mode: .spokenAudio, options: [])
             try session.setActive(true)
             print("AudioManager: Audio session configured successfully")
+            
+            // Listen for audio interruptions (calls, Siri, other apps)
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleAudioInterruption),
+                name: AVAudioSession.interruptionNotification,
+                object: session
+            )
+            
+            // Listen for route changes (headphones unplugged, Bluetooth disconnect)
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleRouteChange),
+                name: AVAudioSession.routeChangeNotification,
+                object: session
+            )
         } catch {
             print("AudioManager: Failed to configure audio session: \(error)")
+        }
+    }
+    
+    /// Handle audio interruptions (phone calls, Siri, other audio apps)
+    @objc private func handleAudioInterruption(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+        
+        switch type {
+        case .began:
+            // Audio was interrupted - pause playback
+            print("AudioManager: Audio interrupted (call/Siri/other app)")
+            // Player auto-pauses, but update our state
+            isPlaying = false
+            updateNowPlayingInfo()
+            
+        case .ended:
+            // Interruption ended - check if we should resume
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            
+            if options.contains(.shouldResume) {
+                // System says we should resume playback
+                print("AudioManager: Interruption ended, resuming playback")
+                
+                // Small delay to let the system settle
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                    self?.player.play()
+                    self?.player.rate = self?.playbackRate ?? 1.0
+                    self?.isPlaying = true
+                    self?.updateNowPlayingInfo()
+                }
+            } else {
+                print("AudioManager: Interruption ended, not resuming (shouldResume = false)")
+            }
+            
+        @unknown default:
+            break
+        }
+    }
+    
+    /// Handle audio route changes (headphones unplugged)
+    @objc private func handleRouteChange(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+            return
+        }
+        
+        switch reason {
+        case .oldDeviceUnavailable:
+            // Headphones were unplugged - pause playback (standard iOS behavior)
+            print("AudioManager: Audio route changed (device disconnected), pausing")
+            player.pause()
+            isPlaying = false
+            updateNowPlayingInfo()
+            
+        case .newDeviceAvailable:
+            // New device connected (e.g., headphones plugged in) - no auto-resume
+            print("AudioManager: New audio device available")
+            
+        default:
+            break
         }
     }
 
@@ -252,7 +335,7 @@ class AudioManager {
         print("AudioManager: Playing episode: \(episode.title)")
 
         currentEpisode = episode
-        isPlaying = true
+        lastSkippedAdEnd = -1 // Reset ad skip tracking for new episode
         
         // Save state
         UserDefaults.standard.set(episode.url, forKey: lastPlayedKey)
@@ -266,34 +349,71 @@ class AudioManager {
              player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
         }
 
-        player.playImmediately(atRate: playbackRate)
-        setupTimeObserver()
-        updateNowPlayingInfo() // System integration hook
+        // Determine if we need to block for ad detection
+        let needsAdDetection = (episode.adSegments?.isEmpty ?? true) && 
+                               episode.adDetectionStatus != "completed" && 
+                               episode.adDetectionStatus != "processing"
         
-        // Trigger Groq Ad Detection (fire and forget)
-        Task {
-            if episode.adSegments?.isEmpty ?? true, episode.adDetectionStatus != "completed", episode.adDetectionStatus != "processing" {
-                if URL(string: episode.url) != nil {
-                    let context = EpisodeDetectionContext(
-                        id: episode.id,
-                        title: episode.title,
-                        audioURL: episode.url,
-                        isDownloaded: episode.isDownloaded,
-                        localFilePath: episode.localFilePath
-                    )
+        if needsAdDetection {
+            // BLOCKING FLOW: Wait for ad detection before playback
+            isBuffering = true
+            print("AudioManager: 🛑 Blocking playback - detecting ads in first 5 minutes...")
+            
+            Task {
+                let context = EpisodeDetectionContext(
+                    id: episode.id,
+                    title: episode.title,
+                    audioURL: episode.url,
+                    isDownloaded: episode.isDownloaded,
+                    localFilePath: episode.localFilePath
+                )
+                
+                do {
+                    // Check first 5 minutes for intro ads - THIS BLOCKS
+                    try await AdDetectionService.shared.analyzeFirstSegment(context: context, episode: episode)
+                    print("AudioManager: ✅ Ad detection complete. Starting playback.")
+                } catch {
+                    print("AudioManager: ⚠️ Ad detection failed: \(error). Starting playback anyway.")
+                }
+                
+                // Clear buffering state and START PLAYING
+                await MainActor.run {
+                    self.isBuffering = false
+                    self.isPlaying = true
+                    self.player.playImmediately(atRate: self.playbackRate)
+                    self.setupTimeObserver()
+                    self.updateNowPlayingInfo()
                     
-                    do {
-                         // Check first 5 minutes (300 seconds) for intro ads
-                         // This is fast (~5s) because it only processes a small chunk
-                         _ = try await AdDetectionService.shared.analyzeChunk(
-                            context: context, 
-                            startTime: 0, 
-                            duration: 300, 
-                            episode: episode
-                         )
-                    } catch {
-                        print("AudioManager: Ad detection failed: \(error)")
+                    // Skip to after first ad if one was detected at the start
+                    if let segments = episode.adSegments, !segments.isEmpty {
+                        if let firstAd = segments.first, firstAd.startTime < 5 {
+                            print("AudioManager: ⏭️ Skipping intro ad (0-\(firstAd.endTime)s)")
+                            let skipTo = CMTime(seconds: firstAd.endTime + 1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+                            self.player.seek(to: skipTo, toleranceBefore: .zero, toleranceAfter: .zero)
+                        }
                     }
+                }
+                
+                // Continue with playback-paced background processing
+                if episode.adDetectionStatus == "partial_start" {
+                    Task.detached {
+                        await AdDetectionService.shared.processRemainingWithPlaybackPacing(context: context, episode: episode)
+                    }
+                }
+            }
+        } else {
+            // NORMAL FLOW: Already have ad data, play immediately
+            isPlaying = true
+            player.playImmediately(atRate: playbackRate)
+            setupTimeObserver()
+            updateNowPlayingInfo()
+            
+            // Skip to after first ad if one was detected at the start
+            if let segments = episode.adSegments, !segments.isEmpty {
+                if let firstAd = segments.first, firstAd.startTime < 5 {
+                    print("AudioManager: ⏭️ Skipping intro ad (0-\(firstAd.endTime)s)")
+                    let skipTo = CMTime(seconds: firstAd.endTime + 1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+                    player.seek(to: skipTo, toleranceBefore: .zero, toleranceAfter: .zero)
                 }
             }
         }
@@ -425,6 +545,7 @@ class AudioManager {
     
     private var lastModelUpdateTime: TimeInterval = 0
     private let modelUpdateInterval: TimeInterval = 5.0 // Update model every 5 seconds
+    private var lastSkippedAdEnd: TimeInterval = -1 // Track to avoid repeated skips
     
     private func setupTimeObserver() {
         if let observer = timeObserver {
@@ -441,6 +562,52 @@ class AudioManager {
             guard !newTime.isNaN && !newTime.isInfinite && newTime >= 0 else { return }
             
             self.currentTime = newTime
+            
+            // Check if we're entering an ad segment and skip it (based on user preferences)
+            if let episode = self.currentEpisode,
+               let segments = episode.adSegments {
+                let sortedSegments = segments.sorted { $0.startTime < $1.startTime }
+                
+                for segment in sortedSegments {
+                    // Check if we're inside this ad segment (with small buffer)
+                    if newTime >= segment.startTime - 0.5 && newTime < segment.endTime {
+                        // Check if this ad type should be skipped based on user settings
+                        guard SettingsManager.shared.shouldSkip(adType: segment.adType) else {
+                            continue // User chose not to skip this type
+                        }
+                        
+                        // Find the furthest end time including adjacent ads (≤15s gap)
+                        var finalEndTime = segment.endTime
+                        for nextSegment in sortedSegments where nextSegment.startTime > segment.endTime {
+                            // If next ad starts within 15s of current end, extend the skip
+                            if nextSegment.startTime - finalEndTime <= 15 {
+                                // Only extend if this ad type should also be skipped
+                                if SettingsManager.shared.shouldSkip(adType: nextSegment.adType) {
+                                    finalEndTime = nextSegment.endTime
+                                } else {
+                                    break // Don't skip past an ad type user wants to hear
+                                }
+                            } else {
+                                break // Gap too large, stop extending
+                            }
+                        }
+                        
+                        // Avoid skipping the same ad chain repeatedly
+                        if self.lastSkippedAdEnd != finalEndTime {
+                            self.lastSkippedAdEnd = finalEndTime
+                            let typeLabel = segment.adType ?? "ad"
+                            if finalEndTime != segment.endTime {
+                                print("AudioManager: ⏭️ Skipping \(typeLabel) chain at \(String(format: "%.0f", segment.startTime))-\(String(format: "%.0f", finalEndTime))s (merged)")
+                            } else {
+                                print("AudioManager: ⏭️ Skipping \(typeLabel) at \(String(format: "%.0f", segment.startTime))-\(String(format: "%.0f", segment.endTime))s")
+                            }
+                            let skipTo = CMTime(seconds: finalEndTime + 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+                            self.player.seek(to: skipTo, toleranceBefore: .zero, toleranceAfter: .zero)
+                        }
+                        break
+                    }
+                }
+            }
             
             // Update duration if available and valid (only check occasionally)
             if let itemDuration = self.player.currentItem?.duration.seconds,

@@ -62,14 +62,10 @@ final class GroqChatService {
         let session = URLSession(configuration: config)
         
         let apiCallStart = Date()
-        let networkStart = Date()
         
-        let promptLength = prompt.count
-        let requestBodySize = request.httpBody?.count ?? 0
-        logger.info("⏱️ [Groq Chat] Sending request (model: \(model), prompt: \(promptLength) chars, body: \(requestBodySize) bytes)")
+        logger.debug("[Groq Chat] Sending request to \(model, privacy: .public)")
         
         let (data, response) = try await session.data(for: request)
-        let networkTime = Date().timeIntervalSince(networkStart)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw GroqChatAPIError.invalidResponse
@@ -88,16 +84,7 @@ final class GroqChatService {
             }
         }
         
-        // Log response details
-        let responseSize = data.count
-        if let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") {
-            logger.info("⏱️ [Groq Chat] Content-Type: \(contentType, privacy: .public)")
-        }
-        logger.info("⏱️ [Groq Chat] Received response (\(responseSize) bytes) in \(String(format: "%.2f", networkTime))s")
-        
-        if networkTime > 3.0 {
-            logger.warning("⏱️ [Groq Chat] WARNING: Network request took \(String(format: "%.2f", networkTime))s - this is slower than expected!")
-        }
+        // Log slow requests removed - networkTime was unused
         
         // Parse response
         struct APIResponse: Codable {
@@ -115,9 +102,9 @@ final class GroqChatService {
             throw GroqChatAPIError.invalidResponse
         }
         
-        let parseTime = Date().timeIntervalSince(parseStart)
+        let _ = Date().timeIntervalSince(parseStart)
         let totalTime = Date().timeIntervalSince(apiCallStart)
-        logger.info("⏱️ [Groq Chat] Network: \(String(format: "%.2f", networkTime))s, Parsing: \(String(format: "%.2f", parseTime))s, Total: \(String(format: "%.2f", totalTime))s")
+        logger.debug("[Groq Chat] \(model, privacy: .public) complete: \(String(format: "%.2f", totalTime))s")
         
         return content
     }

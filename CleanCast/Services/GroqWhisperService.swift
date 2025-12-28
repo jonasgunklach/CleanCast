@@ -14,15 +14,30 @@ final class GroqWhisperService {
     private let logger = Logger(subsystem: "com.jonasgunklach.CleanCast", category: "GroqWhisper")
     private let baseURL = URL(string: "https://api.groq.com/openai/v1/audio/transcriptions")!
     
+    // MARK: - Timestamp Structures
+    
+    /// Segment timestamp from Whisper API (sentence-level)
+    struct SegmentTimestamp: Codable, Sendable {
+        let start: Double  // Start time in seconds (relative to audio start)
+        let end: Double    // End time in seconds
+        let text: String   // Sentence text
+    }
+    
+    /// Complete transcription result with timestamps
+    struct TranscriptionResult: Sendable {
+        let text: String
+        let segments: [SegmentTimestamp]
+    }
+    
     private init() {}
     
-    /// Transcribe audio using Groq's Whisper Large V3 Turbo
+    /// Transcribe audio using Groq's Whisper Large V3 Turbo with segment timestamps
     /// - Parameters:
     ///   - audioData: Audio file data (FLAC, MP3, M4A, MPEG, MPGA, OGG, WAV, or WEBM)
     ///   - apiKey: Groq API key
     ///   - language: Optional language code (auto-detect if nil)
-    /// - Returns: Transcription text
-    func transcribe(audioData: Data, apiKey: String, language: String? = nil) async throws -> String {
+    /// - Returns: TranscriptionResult with text and segment timestamps
+    func transcribe(audioData: Data, apiKey: String, language: String? = nil) async throws -> TranscriptionResult {
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -37,15 +52,15 @@ final class GroqWhisperService {
         body.append("Content-Disposition: form-data; name=\"model\"\r\n\r\n".data(using: .utf8)!)
         body.append("whisper-large-v3-turbo\r\n".data(using: .utf8)!)
         
-        // Add response format - use verbose_json to get word-level timestamps for better accuracy
+        // Add response format - use verbose_json to get segment timestamps
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"response_format\"\r\n\r\n".data(using: .utf8)!)
         body.append("verbose_json\r\n".data(using: .utf8)!)
         
-        // Request word-level timestamps for better accuracy
+        // Request segment-level timestamps (sentence boundaries)
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"timestamp_granularities[]\"\r\n\r\n".data(using: .utf8)!)
-        body.append("word\r\n".data(using: .utf8)!)
+        body.append("segment\r\n".data(using: .utf8)!)
         
         // Add language parameter if specified (auto-detect if not provided)
         if let language = language {
@@ -64,7 +79,7 @@ final class GroqWhisperService {
         request.httpBody = body
         
         let fileSizeMB = Double(audioData.count) / (1024 * 1024)
-        logger.info("Calling Groq Whisper API with \(audioData.count) bytes (\(String(format: "%.1f", fileSizeMB))MB)")
+        logger.info("📤 [Whisper] Sending \(String(format: "%.1f", fileSizeMB))MB audio to Groq API")
         
         // Check file size limit (Groq API typically has ~25MB limit)
         if fileSizeMB > 25 {
@@ -79,12 +94,10 @@ final class GroqWhisperService {
         
         for attempt in 1...maxRetries {
             do {
-                let networkStart = Date()
                 if attempt > 1 {
-                    logger.info("⏱️ [Groq Whisper] Retry attempt \(attempt)/\(maxRetries)")
+                    logger.info("⏱️ [Whisper] Retry attempt \(attempt)/\(maxRetries)")
                 }
                 let (data, response) = try await URLSession.shared.data(for: request)
-                let networkTime = Date().timeIntervalSince(networkStart)
                 lastError = nil
                 
                 guard let httpResponse = response as? HTTPURLResponse else {
@@ -106,33 +119,30 @@ final class GroqWhisperService {
                     }
                 }
                 
-                // Parse verbose_json response with word-level timestamps
-                let parseStart = Date()
-                struct TranscriptionResponse: Codable {
+                // Parse verbose_json response with segment timestamps
+                struct WhisperResponse: Codable {
                     let text: String
-                    let words: [WordTimestamp]?
+                    let segments: [WhisperSegment]?
                 }
                 
-                struct WordTimestamp: Codable {
-                    let word: String
+                struct WhisperSegment: Codable {
                     let start: Double
                     let end: Double
+                    let text: String
                 }
                 
                 let decoder = JSONDecoder()
-                let transcription = try decoder.decode(TranscriptionResponse.self, from: data)
-                let parseTime = Date().timeIntervalSince(parseStart)
+                let whisperResponse = try decoder.decode(WhisperResponse.self, from: data)
                 
-                let totalApiTime = Date().timeIntervalSince(apiCallStart)
-                logger.info("⏱️ [Groq Whisper] Network request: \(String(format: "%.2f", networkTime))s, JSON parsing: \(String(format: "%.2f", parseTime))s, total: \(String(format: "%.2f", totalApiTime))s")
-                logger.info("Transcription received: \(transcription.text.prefix(100), privacy: .public)...")
-                
-                // Log word timestamps if available (for debugging)
-                if let words = transcription.words, !words.isEmpty {
-                    logger.info("Received \(words.count) word-level timestamps (first word: \(words[0].word) at \(words[0].start)s)")
+                // Convert to our SegmentTimestamp format
+                let segments = (whisperResponse.segments ?? []).map { seg in
+                    SegmentTimestamp(start: seg.start, end: seg.end, text: seg.text)
                 }
                 
-                return transcription.text
+                let totalApiTime = Date().timeIntervalSince(apiCallStart)
+                logger.info("[Whisper] \(segments.count) segments in \(String(format: "%.1f", totalApiTime))s")
+                
+                return TranscriptionResult(text: whisperResponse.text, segments: segments)
                 
             } catch let error as URLError where error.code == .networkConnectionLost || error.code == .notConnectedToInternet || error.code == .timedOut {
                 lastError = error

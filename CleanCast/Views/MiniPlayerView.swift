@@ -24,48 +24,70 @@ struct MiniPlayerView: View {
                         .foregroundStyle(.secondary)
                 }
                 
-                VStack(alignment: .leading) {
-                    Text(audioManager.currentEpisode?.title ?? "Not Playing")
-                        .lineLimit(1)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(audioManager.currentEpisode == nil ? .secondary : .primary)
-                    
-                    if let title = audioManager.currentEpisode?.podcast?.title {
-                        Text(title)
+                // Content depends on buffering state
+                if audioManager.isBuffering {
+                    // LOADING STATE: Show spinner and "Identifying Ads..."
+                    VStack(alignment: .leading) {
+                        Text("Identifying Ads...")
                             .lineLimit(1)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("Select an episode")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.primary)
+                        
+                        Text("Please wait")
                             .lineLimit(1)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    
+                    Spacer()
+                    
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .padding(.trailing, 12)
+                } else {
+                    // NORMAL STATE: Show episode info and controls
+                    VStack(alignment: .leading) {
+                        Text(audioManager.currentEpisode?.title ?? "Not Playing")
+                            .lineLimit(1)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(audioManager.currentEpisode == nil ? .secondary : .primary)
+                        
+                        if let title = audioManager.currentEpisode?.podcast?.title {
+                            Text(title)
+                                .lineLimit(1)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Select an episode")
+                                .lineLimit(1)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        audioManager.togglePlayPause()
+                    } label: {
+                        Image(systemName: audioManager.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.title2)
+                            .foregroundStyle(currentAccentColor)
+                    }
+                    .disabled(audioManager.currentEpisode == nil)
+                    
+                    Button {
+                        audioManager.seek(to: audioManager.currentTime + 30)
+                    } label: {
+                        Image(systemName: "goforward.30")
+                            .font(.title2)
+                            .foregroundStyle(currentAccentColor)
+                    }
+                    .disabled(audioManager.currentEpisode == nil)
                 }
-                
-                Spacer()
-                
-                Button {
-                    audioManager.togglePlayPause()
-                } label: {
-                    Image(systemName: audioManager.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.title2)
-                        .foregroundStyle(currentAccentColor)
-                }
-                .disabled(audioManager.currentEpisode == nil)
-                
-                Button {
-                    audioManager.seek(to: audioManager.currentTime + 30)
-                } label: {
-                    Image(systemName: "goforward.30")
-                        .font(.title2)
-                        .foregroundStyle(currentAccentColor)
-                }
-                .disabled(audioManager.currentEpisode == nil)
             }
             .padding(12)
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            //.shadow(radius: 5)
         }
         .padding(.horizontal)
     }
