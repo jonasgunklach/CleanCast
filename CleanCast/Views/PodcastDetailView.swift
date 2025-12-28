@@ -36,15 +36,48 @@ struct PodcastDetailView: View {
         }
     }
     
+    enum FilterMode: String, CaseIterable {
+        case all = "All Episodes"
+        case unplayed = "Unplayed"
+        case played = "Played"
+        case downloaded = "Downloaded"
+    }
+    
+    enum SortOrder {
+        case newestFirst
+        case oldestFirst
+    }
+
     @State private var isRefreshing = false
     @State private var artworkColors: ArtworkColors = .default
     @State private var hasExtractedColors = false
-    @State private var displayedEpisodes: [Episode] = []
+    @State private var displayedEpisodes: [Episode] = [] // Raw list
+    
+    @State private var filterMode: FilterMode = .all
+    @State private var sortOrder: SortOrder = .newestFirst
+    
+    private var filteredEpisodes: [Episode] {
+        let filtered = displayedEpisodes.filter { episode in
+            switch filterMode {
+            case .all: return true
+            case .unplayed: return episode.playStateRaw == 0
+            case .played: return episode.playStateRaw == 2
+            case .downloaded: return episode.isDownloaded
+            }
+        }
+        
+        switch sortOrder {
+        case .newestFirst:
+            return filtered.sorted { $0.releaseDate > $1.releaseDate }
+        case .oldestFirst:
+            return filtered.sorted { $0.releaseDate < $1.releaseDate }
+        }
+    }
     
     init(podcast: Podcast) {
         self._podcast = State(initialValue: podcast)
         if let existing = podcast.episodes {
-            self._displayedEpisodes = State(initialValue: existing.sorted { $0.releaseDate > $1.releaseDate })
+            self._displayedEpisodes = State(initialValue: existing)
         }
     }
     
@@ -86,8 +119,8 @@ struct PodcastDetailView: View {
             }
             .listSectionSeparator(.hidden)
             
-            if !displayedEpisodes.isEmpty {
-                ForEach(displayedEpisodes.prefix(25)) { episode in
+            if !filteredEpisodes.isEmpty {
+                ForEach(filteredEpisodes.prefix(25)) { episode in
                      Button {
                          play(episode)
                      } label: {
@@ -311,13 +344,58 @@ struct PodcastDetailView: View {
     
     private var episodesHeaderSection: some View {
         HStack {
-            Text("Latest Episodes")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-            
+            Menu {
+                Section {
+                    ForEach(FilterMode.allCases, id: \.self) { mode in
+                        Button {
+                            filterMode = mode
+                        } label: {
+                            if filterMode == mode {
+                                Label(mode.rawValue, systemImage: "checkmark")
+                            } else {
+                                Text(mode.rawValue)
+                            }
+                        }
+                    }
+                }
+                
+                Section {
+                    Button {
+                        sortOrder = .newestFirst
+                    } label: {
+                        if sortOrder == .newestFirst {
+                            Label("Newest First", systemImage: "checkmark")
+                        } else {
+                            Text("Newest First")
+                        }
+                    }
+                    Button {
+                        sortOrder = .oldestFirst
+                    } label: {
+                        if sortOrder == .oldestFirst {
+                            Label("Oldest First", systemImage: "checkmark")
+                        } else {
+                            Text("Oldest First")
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(filterMode == .all ? "Latest Episodes" : filterMode.rawValue)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .animation(.none, value: filterMode)
+                    
+                    Image(systemName: "chevron.down.circle.fill")
+                        .font(.headline)
+                        .foregroundStyle(artworkColors.primary)
+                }
+            }
+
             Spacer()
             
-            Text("\(displayedEpisodes.count)")
+            Text("\(filteredEpisodes.count)")
                 .font(.system(size: 15, design: .rounded))
                 .foregroundStyle(.secondary)
         }
