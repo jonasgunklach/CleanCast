@@ -616,6 +616,12 @@ class AudioManager {
                 self.duration = itemDuration
             }
             
+            // Update lock screen info periodically (every second)
+            // This ensures the slider moves on the lock screen
+            if Int(newTime) % 1 == 0 {
+                self.updateNowPlayingInfo()
+            }
+            
             // Only update model state periodically to avoid performance issues
             let timeSinceLastUpdate = abs(newTime - self.lastModelUpdateTime)
             if timeSinceLastUpdate >= self.modelUpdateInterval, let episode = self.currentEpisode {
@@ -638,6 +644,9 @@ class AudioManager {
                 if self.isPlaying {
                      episode.podcast?.totalListenedDuration += timeSinceLastUpdate
                 }
+                
+                // Save context occasionally
+                 try? episode.modelContext?.save()
             }
         }
     }

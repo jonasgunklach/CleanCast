@@ -122,13 +122,56 @@ struct HomeView: View {
                                                 Button {
                                                     audioManager.addToQueue(episode, next: true)
                                                 } label: {
-                                                    Label("Play Next", systemImage: "text.insert")
+                                                    Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward")
                                                 }
                                                 
                                                 Button {
                                                     audioManager.addToQueue(episode, next: false)
                                                 } label: {
                                                     Label("Add to Queue", systemImage: "text.append")
+                                                }
+                                                
+                                                Divider()
+                                                
+                                                Button {
+                                                     Task {
+                                                         if episode.isDownloaded {
+                                                             DownloadManager.shared.removeDownload(episode: episode)
+                                                         } else {
+                                                             try? await DownloadManager.shared.download(episode: episode)
+                                                         }
+                                                     }
+                                                } label: {
+                                                    Label(episode.isDownloaded ? "Remove Download" : "Download", 
+                                                          systemImage: episode.isDownloaded ? "trash" : "arrow.down")
+                                                }
+                                                
+                                                Button {
+                                                    episode.isSaved.toggle()
+                                                } label: {
+                                                    Label(episode.isSaved ? "Unsave" : "Save", 
+                                                          systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
+                                                }
+                                                
+                                                Button {
+                                                    if episode.playStateRaw == 2 {
+                                                        episode.playStateRaw = 0
+                                                        episode.progress = 0
+                                                    } else {
+                                                        episode.playStateRaw = 2
+                                                        episode.progress = episode.duration
+                                                    }
+                                                } label: {
+                                                    Label(episode.playStateRaw == 2 ? "Mark Unplayed" : "Mark Played", 
+                                                          systemImage: episode.playStateRaw == 2 ? "circle" : "checkmark.circle")
+                                                }
+                                                
+                                                Divider()
+                                                
+                                                NavigationLink {
+                                                    EpisodeDetailView(episode: episode, artworkColors: .default)
+                                                } label: {
+                                                    Label("See episode", systemImage: "info.circle")
                                                 }
                                             }
                                             .listRowInsets(EdgeInsets())
@@ -232,16 +275,14 @@ struct HomeEpisodeCard: View {
         VStack(spacing: 0) {
             // Top 2/3: Full artwork image
             if let url = episode.podcast?.imageURL {
-                AsyncImage(url: url) { image in
-                    image.resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        //.shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                } placeholder: {
-                    Color.gray.opacity(0.3)
-                        .overlay {
-                            ProgressView()
-                        }
+                CachedAsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image.resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    } else {
+                        Color.gray.opacity(0.3)
+                    }
                 }
                 .padding(12) // Smaller border -> larger image
                 .padding(.top, 4)
@@ -352,13 +393,48 @@ struct HomeEpisodeCard: View {
             Button {
                 audioManager.addToQueue(episode, next: true)
             } label: {
-                Label("Play Next", systemImage: "text.insert")
+                Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward")
             }
             
             Button {
                 audioManager.addToQueue(episode, next: false)
             } label: {
                 Label("Add to Queue", systemImage: "text.append")
+            }
+            
+            Divider()
+            
+            Button {
+                 Task {
+                     if episode.isDownloaded {
+                         DownloadManager.shared.removeDownload(episode: episode)
+                     } else {
+                         try? await DownloadManager.shared.download(episode: episode)
+                     }
+                 }
+            } label: {
+                Label(episode.isDownloaded ? "Remove Download" : "Download", 
+                      systemImage: episode.isDownloaded ? "trash" : "arrow.down")
+            }
+            
+            Button {
+                episode.isSaved.toggle()
+            } label: {
+                Label(episode.isSaved ? "Unsave" : "Save", 
+                      systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
+            }
+            
+            Button {
+                if episode.playStateRaw == 2 {
+                    episode.playStateRaw = 0
+                    episode.progress = 0
+                } else {
+                    episode.playStateRaw = 2
+                    episode.progress = episode.duration
+                }
+            } label: {
+                Label(episode.playStateRaw == 2 ? "Mark Unplayed" : "Mark Played", 
+                      systemImage: episode.playStateRaw == 2 ? "circle" : "checkmark.circle")
             }
         }
         .tint(artworkColors.primary)
@@ -445,11 +521,13 @@ struct HomeEpisodeRow: View {
         HStack(spacing: 16) {
             // Tiny Artwork
             if let url = episode.podcast?.imageURL {
-                AsyncImage(url: url) { image in
-                    image.resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color.gray.opacity(0.3)
+                CachedAsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image.resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } else {
+                        Color.gray.opacity(0.3)
+                    }
                 }
                 .frame(width: 50, height: 50)
                 .clipShape(RoundedRectangle(cornerRadius: 8))

@@ -79,6 +79,16 @@ struct PodcastDetailView: View {
         if let existing = podcast.episodes {
             self._displayedEpisodes = State(initialValue: existing)
         }
+        
+        // Pre-fill colors if available
+        if let bgHex = podcast.backgroundColorHex,
+           let accHex = podcast.accentColorHex {
+             let bg = ColorManager.shared.color(from: bgHex)
+             let acc = ColorManager.shared.color(from: accHex)
+             let colors = ArtworkColors(primary: bg, secondary: acc, accent: acc)
+             self._artworkColors = State(initialValue: colors)
+             self._hasExtractedColors = State(initialValue: true)
+        }
     }
     
     // Derived background color based on scheme and extraction
@@ -383,7 +393,7 @@ struct PodcastDetailView: View {
                 HStack(spacing: 4) {
                     Text(filterMode == .all ? "Latest Episodes" : filterMode.rawValue)
                         .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(artworkColors.primary)
                         .fixedSize(horizontal: true, vertical: false)
                         .animation(.none, value: filterMode)
                     
@@ -408,11 +418,12 @@ struct PodcastDetailView: View {
     @ViewBuilder
     private var artworkView: some View {
         if let url = podcast.imageURL {
-            AsyncImage(url: url) { image in
-                image.resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Color.gray.opacity(0.3)
+            CachedAsyncImage(url: url) { phase in
+                if let image = phase.image {
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } else {
+                    Color.gray.opacity(0.3)
+                }
             }
             .frame(width: 180, height: 180)
             .clipShape(RoundedRectangle(cornerRadius: 20))

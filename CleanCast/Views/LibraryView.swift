@@ -159,11 +159,13 @@ struct PodcastLibraryGrid: View {
                     } label: {
                         VStack(alignment: .leading) {
                             if let url = podcast.imageURL {
-                                AsyncImage(url: url) { image in
-                                    image.resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                } placeholder: {
-                                    Color.gray.opacity(0.3)
+                                CachedAsyncImage(url: url) { phase in
+                                    if let image = phase.image {
+                                        image.resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                    } else {
+                                        Color.gray.opacity(0.3)
+                                    }
                                 }
                                 .cornerRadius(12)
                             }

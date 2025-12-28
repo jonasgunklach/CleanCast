@@ -8,10 +8,12 @@ struct MiniPlayerView: View {
             HStack(spacing: 12) {
                 // Image
                 if let url = audioManager.currentEpisode?.podcast?.imageURL {
-                    AsyncImage(url: url) { image in
-                        image.resizable().aspectRatio(contentMode: .fit)
-                    } placeholder: {
-                        Color.gray
+                    CachedAsyncImage(url: url) { phase in
+                        if let image = phase.image {
+                            image.resizable().aspectRatio(contentMode: .fit)
+                        } else {
+                            Color.gray
+                        }
                     }
                     .frame(width: 40, height: 40)
                     .clipShape(RoundedRectangle(cornerRadius: 4))
