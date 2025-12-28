@@ -15,9 +15,15 @@ struct HomeView: View {
         // 1. Group by Podcast
         let grouped = Dictionary(grouping: podcasts.flatMap { $0.episodes ?? [] }) { $0.podcast }
         
-        // 2. Sort Podcasts by usage (descending)
+        // 2. Sort Podcasts by recency (stable) instead of usage (volatile during playback)
+        // Add title as tie-breaker for deterministic order when dates are equal (e.g. initial import)
         let sortedPodcasts = grouped.keys.sorted {
-            ($0?.totalListenedDuration ?? 0) > ($1?.totalListenedDuration ?? 0)
+            let date1 = $0?.lastUpdate ?? Date.distantPast
+            let date2 = $1?.lastUpdate ?? Date.distantPast
+            if abs(date1.timeIntervalSince(date2)) > 1 {
+                return date1 > date2
+            }
+            return ($0?.title ?? "") < ($1?.title ?? "")
         }
         
         // 3. Prepare queues per podcast (sorted by release date descending)
@@ -229,9 +235,9 @@ struct HomeView: View {
                             if !newEpisodes.isEmpty {
                                 newEpisodes.forEach { $0.podcast = podcast }
                                 podcast.episodes?.append(contentsOf: newEpisodes)
+                                podcast.lastUpdate = Date()
                             }
                         }
-                        podcast.lastUpdate = Date()
                     }
                 } catch {
                     print("Home refresh failed for \(podcast.title): \(error)")
