@@ -94,5 +94,19 @@ class SettingsManager {
         }
     }
     
+    // MARK: - General Preferences
+    private let kDebugModeEnabled = "debug_mode_enabled"
+    private let kDownloadOnSave = "download_on_save"
+    
+    var debugModeEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: kDebugModeEnabled) }
+        set { UserDefaults.standard.set(newValue, forKey: kDebugModeEnabled) }
+    }
+    
+    var downloadOnSave: Bool {
+        get { UserDefaults.standard.bool(forKey: kDownloadOnSave) }
+        set { UserDefaults.standard.set(newValue, forKey: kDownloadOnSave) }
+    }
+    
     private init() {}
 }

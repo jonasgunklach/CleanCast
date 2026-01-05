@@ -253,15 +253,34 @@ struct FullPlayerView: View {
                         .containerRelativeFrame(.horizontal)
                         .id(0)
                         
-                        // Page 1: Up Next Queue
+                        // Page 1: Transcript (Debug Only)
+                        if SettingsManager.shared.debugModeEnabled {
+                            TranscriptView(accentColor: artworkColors?.accent)
+                                .containerRelativeFrame(.horizontal)
+                                .id(1)
+                        } else {
+                            // Empty placeholder to maintain index alignment if needed?
+                            // Actually, if we hide it, we should likely just have 2 pages.
+                            // But pagination dots might expect index.
+                            // Better: Just don't show it, and UpNext becomes Page 1?
+                            // User said "2nd page not third".
+                            // If Debug OFF: 0: Controls, 1: UpNext
+                            // If Debug ON: 0: Controls, 1: Transcript, 2: UpNext
+                            
+                            // Let's implement dynamic ordering.
+                            // If we skip ID 1, ScrollView might jump.
+                            // Ideally we just conditionally show.
+                            // BUT: UpNext is Page 1? Or Page 2?
+                            // If Debug is OFF, UpNext is likely the only other page.
+                            // Let's assume:
+                            // Debug ON: [Controls, Transcript, UpNext]
+                            // Debug OFF: [Controls, UpNext]
+                        }
+                        
+                        // Page 2 (or 1): Up Next Queue
                         UpNextView(accentColor: artworkColors?.accent)
                             .containerRelativeFrame(.horizontal)
-                            .id(1)
-                        
-                        // Page 2: Transcript
-                        TranscriptView(accentColor: artworkColors?.accent)
-                            .containerRelativeFrame(.horizontal)
-                            .id(2)
+                            .id(SettingsManager.shared.debugModeEnabled ? 2 : 1)
                         
                     }
                     .scrollTargetLayout()
@@ -277,12 +296,19 @@ struct FullPlayerView: View {
                         Circle()
                             .fill((scrollPosition ?? 0) == 0 ? Color.primary : Color.secondary.opacity(0.3))
                             .frame(width: 8, height: 8)
-                        Circle()
-                            .fill((scrollPosition ?? 0) == 1 ? Color.primary : Color.secondary.opacity(0.3))
-                            .frame(width: 8, height: 8)
-                        Circle()
-                            .fill((scrollPosition ?? 0) == 2 ? Color.primary : Color.secondary.opacity(0.3))
-                            .frame(width: 8, height: 8)
+                        
+                        if SettingsManager.shared.debugModeEnabled {
+                            Circle()
+                                .fill((scrollPosition ?? 0) == 1 ? Color.primary : Color.secondary.opacity(0.3))
+                                .frame(width: 8, height: 8)
+                            Circle()
+                                .fill((scrollPosition ?? 0) == 2 ? Color.primary : Color.secondary.opacity(0.3))
+                                .frame(width: 8, height: 8)
+                        } else {
+                            Circle()
+                                .fill((scrollPosition ?? 0) == 1 ? Color.primary : Color.secondary.opacity(0.3))
+                                .frame(width: 8, height: 8)
+                        }
                     }
                     .padding(.bottom, 30)
                 }

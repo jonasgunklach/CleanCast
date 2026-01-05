@@ -372,23 +372,14 @@ final class AdDetectionService {
         
         logger.info("Preparing window records for \(context.title)")
         
-        let asset = AVURLAsset(url: URL(string: context.audioURL)!) // Use remote for duration if local not ready?
-        // Better: ensure we have at least partial duration. 
-        // If download is partial, duration might be estimated.
-        // If we have local file, use that.
-        var duration: TimeInterval = 0
-        if let local = await ensureLocalFile(for: context, tier: .free) { // Try get local ref
-             duration = (try? await AVURLAsset(url: local).load(.duration).seconds) ?? 0
-        }
+        // Optimisation: Use metadata duration if available to avoid blocking on download
+        var duration = await MainActor.run { episode.duration }
         
-        // If duration unknown (streaming start), default to a safe minimum or try to fetch.
+        // If duration unknown, fallback to checking file (downloads 10% chunk if needed)
         if duration == 0 {
-            // Try head request or metadata
-             duration = 3600 // Estimate 1 hour if failing? Safer to wait?
-             // Actually, if we are streaming, AVPlayerItem has duration.
-             // For now assume we can get it or update later.
-             // Let's assume passed episode has duration
-             duration = await MainActor.run { episode.duration }
+             if let local = await ensureLocalFile(for: context, tier: .free) {
+                 duration = (try? await AVURLAsset(url: local).load(.duration).seconds) ?? 0
+             }
         }
         
         if duration == 0 { 

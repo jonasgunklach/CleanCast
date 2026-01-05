@@ -20,11 +20,11 @@ final class Stage2RefineService {
     
     // Models
     private let modelA = "llama-3.3-70b-versatile"
-    private let modelB = "gpt-oss-120b" // Based on user provided URL
+    private let modelB = "openai/gpt-oss-120b" // Based on user provided URL
     
     // For internal reference
     private let model70B = "llama-3.3-70b-versatile"
-    private let model120B = "gpt-oss-120b"
+    private let model120B = "openai/gpt-oss-120b"
     
     private init() {}
     
