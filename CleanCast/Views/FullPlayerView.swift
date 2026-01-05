@@ -78,11 +78,20 @@ struct FullPlayerView: View {
                             
                             // Info
                             VStack(spacing: 8) {
-                                Text(audioManager.currentEpisode?.title ?? "Not Playing")
-                                    .font(.title2.bold())
-                                    .multilineTextAlignment(.center)
-                                    .lineLimit(2)
-                                    .foregroundStyle(.primary)
+                                HStack(alignment: .center, spacing: 8) {
+                                    Text(audioManager.currentEpisode?.title ?? "Not Playing")
+                                        .font(.title2.bold())
+                                        .multilineTextAlignment(.center)
+                                        .lineLimit(2)
+                                        .foregroundStyle(.primary)
+                                    
+                                    if let status = audioManager.currentEpisode?.adDetectionStatus, 
+                                       (status == "processing" || status == "partial_start") {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                            .tint(.secondary)
+                                    }
+                                }
                                 
                                 Text(audioManager.currentEpisode?.podcast?.title ?? "")
                                     .font(.headline)

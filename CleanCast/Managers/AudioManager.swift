@@ -198,37 +198,55 @@ class AudioManager {
         }
     }
     
+    private var currentArtwork: MPMediaItemArtwork?
+    private var currentArtworkUrl: URL?
+
     func updateNowPlayingInfo() {
         guard let episode = currentEpisode else {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            currentArtwork = nil
+            currentArtworkUrl = nil
             return
         }
         
-        var nowPlayingInfo = [String: Any]()
+        // Start with existing info to preserve artwork while we update metadata
+        var nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [String: Any]()
+        
+        // Update Metadata
         nowPlayingInfo[MPMediaItemPropertyTitle] = episode.title
         nowPlayingInfo[MPMediaItemPropertyArtist] = episode.podcast?.title ?? "CleanCast"
         nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
         nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
         nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? playbackRate : 0.0
         
-        // Artwork
+        // Handle Artwork
         if let url = episode.podcast?.imageURL {
-             // Asynchronously load image if not cached (simplified for now, ideally cache)
-             // For immediate feedback we might skip image or use a placeholder, 
-             // but `MPMediaItemArtwork` needs a synchronous UIImage.
-             // We'll dispatch async to load it then update again.
-             Task {
-                 if let (data, _) = try? await URLSession.shared.data(from: url), let image = UIImage(data: data) {
-                     let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-                     
-                     await MainActor.run {
-                         // Re-fetch current info to avoid race conditions overwriting newer time
-                         var currentInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [String: Any]()
-                         currentInfo[MPMediaItemPropertyArtwork] = artwork
-                         MPNowPlayingInfoCenter.default().nowPlayingInfo = currentInfo
-                     }
-                 }
-             }
+            if url != currentArtworkUrl {
+                // New artwork needed
+                currentArtworkUrl = url
+                currentArtwork = nil // Clear old while loading
+                
+                Task {
+                    if let (data, _) = try? await URLSession.shared.data(from: url), let image = UIImage(data: data) {
+                        let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+                        
+                        await MainActor.run {
+                            // Verify we're still playing the same thing
+                            if self.currentArtworkUrl == url {
+                                self.currentArtwork = artwork
+                                
+                                // Apply the new artwork to the live info
+                                var currentInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [String: Any]()
+                                currentInfo[MPMediaItemPropertyArtwork] = artwork
+                                MPNowPlayingInfoCenter.default().nowPlayingInfo = currentInfo
+                            }
+                        }
+                    }
+                }
+            } else if let artwork = currentArtwork {
+                // Use cached artwork
+                nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
+            }
         }
         
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
@@ -318,7 +336,6 @@ class AudioManager {
                  print("AudioManager: Playing local file: \(path)")
              } else {
                  print("AudioManager: Local file missing, falling back to restart/redownload if possible")
-                 // Fallback to remote if possible
                  if let remoteUrl = URL(string: episode.url) {
                       url = remoteUrl
                  } else { return }
@@ -350,31 +367,32 @@ class AudioManager {
         }
 
         // Determine if we need to block for ad detection
-        let needsAdDetection = (episode.adSegments?.isEmpty ?? true) && 
-                               episode.adDetectionStatus != "completed" && 
-                               episode.adDetectionStatus != "processing"
+        // Logic: If Intro window (index 0) exists and is DONE, we are good.
+        // If not, we block.
+        let windows = episode.windowRecords ?? []
+        let introWindow = windows.first(where: { $0.windowIndex == 0 })
+        let isIntroDone = introWindow?.status == "done"
         
-        if needsAdDetection {
+        // Only block if we have NO intro done and Settings say we should skip (implied logic)
+        let needsBlockingWait = !isIntroDone && (episode.adSegments?.isEmpty ?? true)
+        
+        let context = EpisodeDetectionContext(
+            id: episode.id,
+            title: episode.title,
+            audioURL: episode.url,
+            isDownloaded: episode.isDownloaded,
+            localFilePath: episode.localFilePath
+        )
+        
+        if needsBlockingWait {
             // BLOCKING FLOW: Wait for ad detection before playback
             isBuffering = true
-            print("AudioManager: 🛑 Blocking playback - detecting ads in first 5 minutes...")
+            print("AudioManager: 🛑 Blocking playback - detecting ads in intro window...")
             
             Task {
-                let context = EpisodeDetectionContext(
-                    id: episode.id,
-                    title: episode.title,
-                    audioURL: episode.url,
-                    isDownloaded: episode.isDownloaded,
-                    localFilePath: episode.localFilePath
-                )
-                
-                do {
-                    // Check first 5 minutes for intro ads - THIS BLOCKS
-                    try await AdDetectionService.shared.analyzeFirstSegment(context: context, episode: episode)
-                    print("AudioManager: ✅ Ad detection complete. Starting playback.")
-                } catch {
-                    print("AudioManager: ⚠️ Ad detection failed: \(error). Starting playback anyway.")
-                }
+                // Check first 5 minutes (Intro) - THIS BLOCKS
+                await AdDetectionService.shared.analyzeEpisode(context: context, episode: episode, currentPlayhead: 0)
+                print("AudioManager: ✅ Ad detection complete/timeout. Starting playback.")
                 
                 // Clear buffering state and START PLAYING
                 await MainActor.run {
@@ -393,20 +411,19 @@ class AudioManager {
                         }
                     }
                 }
-                
-                // Continue with playback-paced background processing
-                if episode.adDetectionStatus == "partial_start" {
-                    Task.detached {
-                        await AdDetectionService.shared.processRemainingWithPlaybackPacing(context: context, episode: episode)
-                    }
-                }
             }
         } else {
-            // NORMAL FLOW: Already have ad data, play immediately
+            // NORMAL FLOW: Play immediately
             isPlaying = true
             player.playImmediately(atRate: playbackRate)
             setupTimeObserver()
             updateNowPlayingInfo()
+            
+            // Trigger background processing for progressive windows
+            print("AudioManager: 🔄 Triggering progressive ad detection...")
+            Task.detached {
+                await AdDetectionService.shared.analyzeEpisode(context: context, episode: episode, currentPlayhead: episode.progress)
+            }
             
             // Skip to after first ad if one was detected at the start
             if let segments = episode.adSegments, !segments.isEmpty {
@@ -536,6 +553,25 @@ class AudioManager {
                         // Set up time observer so slider works even when paused
                         self.setupTimeObserver()
                     }
+                    // Resume background processing if it was paused/in-progress or failed/stuck
+                    if episode.adDetectionStatus != "completed" {
+                        print("AudioManager: 🔄 Restoring background ad detection (Status: \(episode.adDetectionStatus ?? "nil"))...")
+                        let context = EpisodeDetectionContext(
+                            id: episode.id,
+                            title: episode.title,
+                            audioURL: episode.url,
+                            isDownloaded: episode.isDownloaded,
+                            localFilePath: episode.localFilePath
+                        )
+                        
+                        Task.detached {
+                            // 1. Reset any stuck windows from previous session
+                            await AdDetectionService.shared.resetStuckWindows(for: episode)
+                            
+                            // 2. Resume analysis
+                            await AdDetectionService.shared.analyzeEpisode(context: context, episode: episode, currentPlayhead: episode.progress)
+                        }
+                    }
                 }
             } catch {
                 print("AudioManager: Failed to restore session: \(error)")
@@ -647,6 +683,21 @@ class AudioManager {
                 
                 // Save context occasionally
                  try? episode.modelContext?.save()
+                
+                // --- Periodic Ad Detection Check (Every 30s) ---
+                if Int(newTime) % 30 == 0 {
+                    let context = EpisodeDetectionContext(
+                        id: episode.id,
+                        title: episode.title,
+                        audioURL: episode.url,
+                        isDownloaded: episode.isDownloaded,
+                        localFilePath: episode.localFilePath
+                    )
+                    Task.detached {
+                        // This won't do anything if windows are already processed, very cheap check
+                        await AdDetectionService.shared.analyzeEpisode(context: context, episode: episode, currentPlayhead: newTime)
+                    }
+                }
             }
         }
     }

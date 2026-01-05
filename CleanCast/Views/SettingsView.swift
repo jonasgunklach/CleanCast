@@ -19,6 +19,18 @@ struct SettingsView: View {
                     Text("Identify and skip ads using Groq AI Pipeline")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    
+                    Picker("Detection Tier", selection: Binding(
+                        get: { SettingsManager.shared.adDetectionTier },
+                        set: { SettingsManager.shared.adDetectionTier = $0 }
+                    )) {
+                        ForEach(AdDetectionTier.allCases) { tier in
+                            Text(tier.rawValue).tag(tier)
+                        }
+                    }
+                    Text(SettingsManager.shared.adDetectionTier.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 
                 if autoSkipAds {

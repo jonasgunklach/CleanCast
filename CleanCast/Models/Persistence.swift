@@ -9,7 +9,9 @@ struct PersistenceController {
         let schema = Schema([
             Podcast.self,
             Episode.self,
-            AdSegment.self
+            AdSegment.self,
+            WindowRecord.self,
+            TranscriptChunk.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

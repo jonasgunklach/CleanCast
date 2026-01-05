@@ -42,9 +42,19 @@ class DownloadManager: NSObject {
         
         print("DownloadManager: Downloaded episode: took \(String(format: "%.1f", downloadTime))s")
         
-        // Pre-process first 2 blocks (10 min) of ad detection
+        // Pre-process first 2 blocks (Intro + next progressive) or full depending on tier
+        // But since this is a download, we essentially want to kick off the tier's logic for local files.
+        // If "Downloads Paid", it will process everything. If "Streaming", maybe just intro.
+        // Let's use the standard entry point.
+        let context = EpisodeDetectionContext(
+            id: episode.id,
+            title: episode.title,
+            audioURL: episode.url,
+            isDownloaded: true,
+            localFilePath: fileURL.path
+        )
         Task.detached {
-            await AdDetectionService.shared.preProcessDownloadedEpisode(episode: episode)
+            await AdDetectionService.shared.analyzeEpisode(context: context, episode: episode)
         }
     }
     

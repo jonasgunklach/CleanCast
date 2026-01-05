@@ -30,6 +30,10 @@ final class Episode {
     @Relationship(deleteRule: .cascade)
     var adSegments: [AdSegment]? = []
     
+    // Window-based analysis tracking
+    @Relationship(deleteRule: .cascade)
+    var windowRecords: [WindowRecord]? = []
+    
     var adDetectionStatus: String? // "processing", "completed", "failed"
     var adDetectionError: String?
     
@@ -47,6 +51,7 @@ final class Episode {
         self.isDownloaded = false
         self.localFilePath = nil
         self.adSegments = []
+        self.windowRecords = []
     }
     
     var playState: PlayState {

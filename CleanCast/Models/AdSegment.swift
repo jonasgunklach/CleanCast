@@ -18,6 +18,16 @@ final class AdSegment {
     var label: String
     var adType: String?
     var brandOrOffer: String?
+    
+    // Evidence & Arbitration
+    var source: String? // "70b", "120b", "union", "agree", "single-model", "vote"
+    
+    // Sentence-level evidence for precise validation
+    var firstSentenceId: Int?
+    var lastSentenceId: Int?
+    var firstSentenceText: String?
+    var lastSentenceText: String?
+    
     var evidenceExcerpt: String?
     var reasoning: String?
     
@@ -29,6 +39,11 @@ final class AdSegment {
          label: String = "Ad",
          adType: String? = nil,
          brandOrOffer: String? = nil,
+         source: String? = nil,
+         firstSentenceId: Int? = nil,
+         lastSentenceId: Int? = nil,
+         firstSentenceText: String? = nil,
+         lastSentenceText: String? = nil,
          evidenceExcerpt: String? = nil,
          reasoning: String? = nil) {
         self.startTime = startTime
@@ -37,6 +52,11 @@ final class AdSegment {
         self.label = label
         self.adType = adType
         self.brandOrOffer = brandOrOffer
+        self.source = source
+        self.firstSentenceId = firstSentenceId
+        self.lastSentenceId = lastSentenceId
+        self.firstSentenceText = firstSentenceText
+        self.lastSentenceText = lastSentenceText
         self.evidenceExcerpt = evidenceExcerpt
         self.reasoning = reasoning
     }

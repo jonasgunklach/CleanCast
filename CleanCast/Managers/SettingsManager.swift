@@ -27,6 +27,22 @@ class SettingsManager {
         }
     }
     
+    // MARK: - Ad Detection Tier
+    private let kAdDetectionTier = "ad_detection_tier"
+    
+    var adDetectionTier: AdDetectionTier {
+        get {
+            if let saved = UserDefaults.standard.string(forKey: kAdDetectionTier),
+               let tier = AdDetectionTier(rawValue: saved) {
+                return tier
+            }
+            return .streaming // Default
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: kAdDetectionTier)
+        }
+    }
+    
     // MARK: - Ad Type Skip Preferences
     
     /// Skip paid sponsor ads (default: true)

@@ -90,6 +90,12 @@ struct TranscriptView: View {
                             }
                         }
                     }
+                    .onAppear {
+                        // Scroll to current segment when view appears
+                        if let index = currentSegmentIndex {
+                            proxy.scrollTo(index, anchor: .center)
+                        }
+                    }
                 }
             }
         }
