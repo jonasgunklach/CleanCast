@@ -108,5 +108,27 @@ class SettingsManager {
         set { UserDefaults.standard.set(newValue, forKey: kDownloadOnSave) }
     }
     
+    // MARK: - Onboarding & Feature Flags
+    private let kHasCompletedOnboarding = "has_completed_onboarding"
+    private let kAutoAdDetectionEnabled = "auto_ad_detection_enabled"
+    
+    var hasCompletedOnboarding: Bool {
+        get { UserDefaults.standard.bool(forKey: kHasCompletedOnboarding) }
+        set { UserDefaults.standard.set(newValue, forKey: kHasCompletedOnboarding) }
+    }
+    
+    var autoAdDetectionEnabled: Bool {
+        get { 
+            // Default to true if not set? Or false until onboarding?
+            // Let's assume true by default if not strictly set, or check existence.
+            // For now, standard bool defaults to false. Let's make it explicit.
+            if UserDefaults.standard.object(forKey: kAutoAdDetectionEnabled) == nil {
+                return true // Default ON
+            }
+            return UserDefaults.standard.bool(forKey: kAutoAdDetectionEnabled) 
+        }
+        set { UserDefaults.standard.set(newValue, forKey: kAutoAdDetectionEnabled) }
+    }
+    
     private init() {}
 }

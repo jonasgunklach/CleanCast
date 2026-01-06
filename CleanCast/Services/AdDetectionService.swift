@@ -577,9 +577,8 @@ final class AdDetectionService {
         
         // Optimization: For Window 0 (Intro), try partial download first
         if windowIndex == 0 {
-             // 10% should cover the first 5 minutes easily for most podcasts (usually < 1 hour)
-             // Or explicitly calculate bytes for 5 mins + buffer? 10% is a safe heuristic.
-             return await downloadFirstChunk(for: context, chunkPercent: 10)
+             // 12% to safely cover the 10% intro window (handling VBR variance)
+             return await downloadFirstChunk(for: context, chunkPercent: 12)
         }
         
         // For other windows, we currently mandate full file

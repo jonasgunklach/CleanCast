@@ -81,6 +81,7 @@ struct SettingsView: View {
 
 struct AdSkippingSettingsView: View {
     @AppStorage("autoSkipAds") private var autoSkipAds = true
+    @AppStorage("ad_detection_tier") private var adDetectionTier: AdDetectionTier = .streaming
     
     // Ad type skip preferences
     @AppStorage("skip_paid_ads") private var skipPaidAds = true
@@ -98,15 +99,12 @@ struct AdSkippingSettingsView: View {
             }
             
             Section("Ad Detection") {
-                Picker("Detection Tier", selection: Binding(
-                    get: { SettingsManager.shared.adDetectionTier },
-                    set: { SettingsManager.shared.adDetectionTier = $0 }
-                )) {
+                Picker("Detection Tier", selection: $adDetectionTier) {
                     ForEach(AdDetectionTier.allCases) { tier in
                         Text(tier.rawValue).tag(tier)
                     }
                 }
-                Text(SettingsManager.shared.adDetectionTier.description)
+                Text(adDetectionTier.description)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

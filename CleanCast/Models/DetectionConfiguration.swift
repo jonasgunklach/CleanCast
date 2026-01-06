@@ -16,9 +16,9 @@ enum AdDetectionTier: String, CaseIterable, Identifiable {
     
     var description: String {
         switch self {
-        case .free: return "Intro processing only (First 5%)"
-        case .streaming: return "Progressive analysis while playing"
-        case .downloads: return "Full offline analysis"
+        case .free: return "Intro processing only (first 5% of episde)"
+        case .streaming: return "Progressive ad detection while playing episode"
+        case .downloads: return "Full offline ad detection"
         }
     }
 }
@@ -27,7 +27,7 @@ struct WindowingStrategy {
     let tier: AdDetectionTier
     
     // Window definitions
-    static let introWindowPercentage: Double = 0.05
+    static let introWindowPercentage: Double = 0.10
     static let progressiveWindowDuration: TimeInterval = 5 * 60 // 5 minutes
     
     func shouldProcess(windowIndex: Int, totalDuration: TimeInterval, currentPlayhead: TimeInterval? = nil) -> Bool {
