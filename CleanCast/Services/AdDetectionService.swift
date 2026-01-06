@@ -126,20 +126,25 @@ final class AdDetectionService {
         }
         
         // 3. Process Windows Sequentially (for simple concurrency control)
-        // Ensure local file is available (at least partial)
-        guard let localURL = await ensureLocalFile(for: context, tier: tier) else {
-            logger.error("❌ Failed to get audio file")
-            await updateEpisodeStatus(episode, status: "failed", error: "Download failed")
-            return
-        }
+        // 3. Process Windows Sequentially
+        // We ensure the file is available per-window to allow for partial downloads (optimization)
         
-        let asset = AVURLAsset(url: localURL)
         await updateEpisodeStatus(episode, status: "processing", error: nil)
         
         for window in windowsToProcess {
             // Check if we should stop (e.g. user paused, app backgrounded, lookahead limits)
             if Task.isCancelled { break }
             
+            // Optimization: For Window 0 (Intro), we only need the first chunk
+            // For later windows, we might need the full file
+            guard let localURL = await ensureLocalFile(for: context, tier: tier, windowIndex: window.windowIndex) else {
+                logger.error("❌ Failed to get audio file for window \(window.windowIndex)")
+                // If a window fails to download, we might want to fail the episode or just this window
+                await updateWindowStatus(window, status: "failed", error: "Download failed")
+                continue
+            }
+            
+            let asset = AVURLAsset(url: localURL)
             await processWindow(window: window, asset: asset, apiKey: groqKey, episode: episode)
         }
         
@@ -162,7 +167,13 @@ final class AdDetectionService {
             logger.info("   [Window \(window.windowIndex)] Audio extracted")
             
             // STEP B: Whisper Transcription
-            let transcription = try await groqWhisperService.transcribe(audioData: audioData, apiKey: apiKey)
+            // Use a generic prompt to encourage handling of multilingual content/code-switching
+            let prompt = "This audio may contain distinct advertisement segments in various languages."
+            let transcription = try await groqWhisperService.transcribe(
+                audioData: audioData, 
+                apiKey: apiKey,
+                prompt: prompt
+            )
             
             // Convert timestamps to real time (Whisper runs on 2x speed audio, so x2)
             // AND offset by window.startTime (since we transcribed a chunk)
@@ -377,7 +388,7 @@ final class AdDetectionService {
         
         // If duration unknown, fallback to checking file (downloads 10% chunk if needed)
         if duration == 0 {
-             if let local = await ensureLocalFile(for: context, tier: .free) {
+             if let local = await ensureLocalFile(for: context, tier: .free, windowIndex: 0) {
                  duration = (try? await AVURLAsset(url: local).load(.duration).seconds) ?? 0
              }
         }
@@ -558,30 +569,25 @@ final class AdDetectionService {
     
     // MARK: - File Management
     
-    private func ensureLocalFile(for context: EpisodeDetectionContext, tier: AdDetectionTier) async -> URL? {
+    private func ensureLocalFile(for context: EpisodeDetectionContext, tier: AdDetectionTier, windowIndex: Int) async -> URL? {
         // If downloaded, use it
         if context.isDownloaded, let path = context.localFilePath, FileManager.default.fileExists(atPath: path) {
             return URL(fileURLWithPath: path)
         }
         
-        // If not downloaded, handle based on tier
-        // Free: Only need first 5% (Intro)
-        if tier == .free {
-             return await downloadFirstChunk(for: context, chunkPercent: 10) // 10% safety buffer
+        // Optimization: For Window 0 (Intro), try partial download first
+        if windowIndex == 0 {
+             // 10% should cover the first 5 minutes easily for most podcasts (usually < 1 hour)
+             // Or explicitly calculate bytes for 5 mins + buffer? 10% is a safe heuristic.
+             return await downloadFirstChunk(for: context, chunkPercent: 10)
         }
         
-        // Streaming: Partial chunks not easily supported by AVURLAsset without intricate caching or full download
-        // For now, if streaming tier, we might still force full download OR implement sophisticated range-loader.
-        // Given complexity, let's start with full download for Streaming Paid too, or large chunks.
-        // Prompt said: "Stream - Download audio covering first 5% ... Progressive: calculate next window..."
-        // To keep AVAsset happy, we really want a file.
-        // Simplification: Download full file for Paid tiers for now, or use the chunker.
-        // Ideally we download just what's needed, but merging chunks into a file AVAsset can read is hard without a proxy.
-        // Fallback: Full download for Paid, Chunk for Free.
+        // For other windows, we currently mandate full file
+        // (Improving this to download specific ranges would be better but complex for AVURLAsset)
         return await ensureLocalFileFull(for: context)
     }
     
-    /// Download valid 10% chunk for Free tier
+    /// Download valid 10% chunk for Intro window
     private func downloadFirstChunk(for context: EpisodeDetectionContext, chunkPercent: Int = 10) async -> URL? {
         guard let remoteURL = URL(string: context.audioURL) else { return nil }
         let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent("ad-chunk-\(context.id.uuidString)-intro.mp3")

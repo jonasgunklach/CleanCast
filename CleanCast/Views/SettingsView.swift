@@ -143,7 +143,7 @@ struct AdSkippingSettingsView: View {
                     Toggle(isOn: $skipProductMention) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Product Mentions")
-                            Text("Organic brand mentions (not ads)")
+                            Text("Unorganic brand mentions (not necessarily ads)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

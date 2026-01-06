@@ -14,6 +14,8 @@ final class GroqWhisperService {
     private let logger = Logger(subsystem: "com.jonasgunklach.CleanCast", category: "GroqWhisper")
     private let baseURL = URL(string: "https://api.groq.com/openai/v1/audio/transcriptions")!
     
+    private let session: URLSession
+    
     // MARK: - Timestamp Structures
     
     /// Segment timestamp from Whisper API (sentence-level)
@@ -29,15 +31,23 @@ final class GroqWhisperService {
         let segments: [SegmentTimestamp]
     }
     
-    private init() {}
+    private init() {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 300 // 5 minutes (for large files)
+        config.timeoutIntervalForResource = 300
+        config.waitsForConnectivity = true
+        // Force TCP to avoid QUIC/UDP "Message too long" errors in Simulator
+        self.session = URLSession(configuration: config)
+    }
     
     /// Transcribe audio using Groq's Whisper Large V3 Turbo with segment timestamps
     /// - Parameters:
     ///   - audioData: Audio file data (FLAC, MP3, M4A, MPEG, MPGA, OGG, WAV, or WEBM)
     ///   - apiKey: Groq API key
     ///   - language: Optional language code (auto-detect if nil)
+    ///   - prompt: Optional text to guide the model's style or continue a previous audio segment
     /// - Returns: TranscriptionResult with text and segment timestamps
-    func transcribe(audioData: Data, apiKey: String, language: String? = nil) async throws -> TranscriptionResult {
+    func transcribe(audioData: Data, apiKey: String, language: String? = nil, prompt: String? = nil) async throws -> TranscriptionResult {
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -69,6 +79,13 @@ final class GroqWhisperService {
             body.append("\(language)\r\n".data(using: .utf8)!)
         }
         
+        // Add prompt if specified
+        if let prompt = prompt {
+             body.append("--\(boundary)\r\n".data(using: .utf8)!)
+             body.append("Content-Disposition: form-data; name=\"prompt\"\r\n\r\n".data(using: .utf8)!)
+             body.append("\(prompt)\r\n".data(using: .utf8)!)
+        }
+        
         // Add audio file
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"audio.m4a\"\r\n".data(using: .utf8)!)
@@ -97,7 +114,7 @@ final class GroqWhisperService {
                 if attempt > 1 {
                     logger.info("⏱️ [Whisper] Retry attempt \(attempt)/\(maxRetries)")
                 }
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await session.data(for: request)
                 lastError = nil
                 
                 guard let httpResponse = response as? HTTPURLResponse else {

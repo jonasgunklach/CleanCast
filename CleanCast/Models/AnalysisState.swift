@@ -21,6 +21,10 @@ final class WindowRecord {
     var error: String?
     var retryCount: Int
     
+    // User Verification
+    var userRating: Int? // 0 = Thumbs Down, 1 = Thumbs Up
+    var userComment: String?
+    
     @Relationship(deleteRule: .cascade)
     var transcriptChunk: TranscriptChunk?
     

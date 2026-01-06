@@ -505,9 +505,25 @@ class AudioManager {
         player.seek(to: cmTime, toleranceBefore: CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC)), 
                     toleranceAfter: CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))) { [weak self] finished in
             DispatchQueue.main.async {
-                self?.isSeeking = false
+                guard let self = self else { return }
+                self.isSeeking = false
                 if finished {
-                    // Let time observer take over from here
+                    // Trigger ad detection update for the new position
+                    if let episode = self.currentEpisode {
+                        print("AudioManager: 🔍 Seek complete to \(clampedTime)s. Triggering ad detection check.")
+                        let context = EpisodeDetectionContext(
+                            id: episode.id,
+                            title: episode.title,
+                            audioURL: episode.url,
+                            isDownloaded: episode.isDownloaded,
+                            localFilePath: episode.localFilePath
+                        )
+                        
+                        Task.detached {
+                            // This ensures that if we jumped to an unanalyzed window, it gets prioritized
+                            await AdDetectionService.shared.analyzeEpisode(context: context, episode: episode, currentPlayhead: clampedTime)
+                        }
+                    }
                 }
             }
         }

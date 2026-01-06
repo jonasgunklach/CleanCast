@@ -31,6 +31,16 @@ final class AdSegment {
     var evidenceExcerpt: String?
     var reasoning: String?
     
+    // User Verification
+    var verificationStatus: VerificationStatus? // nil = unknown, 1 = correct, 0 = incorrect (or use enum)
+    
+    enum VerificationStatus: Int, Codable {
+        case unverified = 0
+        case correct = 1
+        case incorrect = 2
+    }
+
+    
     var episode: Episode?
     
     init(startTime: TimeInterval, 
