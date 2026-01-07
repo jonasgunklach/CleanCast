@@ -8,7 +8,7 @@
 import Foundation
 import OSLog
 
-final class GroqChatService {
+final class GroqChatService: Sendable {
     static let shared = GroqChatService()
     
     private let logger = Logger(subsystem: "com.jonasgunklach.CleanCast", category: "GroqChat")
@@ -55,11 +55,8 @@ final class GroqChatService {
         
         request.httpBody = try JSONEncoder().encode(body)
         
-        // Configure URLSession with timeout
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30.0
-        config.timeoutIntervalForResource = 60.0
-        let session = URLSession(configuration: config)
+        // Use shared session for stability on Simulator
+        let session = URLSession.shared
         
         let apiCallStart = Date()
         

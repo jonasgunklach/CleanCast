@@ -390,8 +390,8 @@ class AudioManager {
             print("AudioManager: 🛑 Blocking playback - detecting ads in intro window...")
             
             Task {
-                // Check first 5 minutes (Intro) - THIS BLOCKS
-                await AdDetectionService.shared.analyzeEpisode(context: context, episode: episode, currentPlayhead: 0)
+                // Check first 5 minutes (Intro) - THIS BLOCKS ONLY WINDOW 0
+                await AdDetectionService.shared.analyzeEpisode(context: context, episode: episode, currentPlayhead: 0, targetWindowIndex: 0)
                 print("AudioManager: ✅ Ad detection complete/timeout. Starting playback.")
                 
                 // Clear buffering state and START PLAYING
@@ -410,6 +410,12 @@ class AudioManager {
                             self.player.seek(to: skipTo, toleranceBefore: .zero, toleranceAfter: .zero)
                         }
                     }
+                }
+                
+                // Trigger background processing for the rest
+                print("AudioManager: 🔄 Triggering progressive ad detection (background)...")
+                Task.detached {
+                    await AdDetectionService.shared.analyzeEpisode(context: context, episode: episode, currentPlayhead: 0)
                 }
             }
         } else {

@@ -8,13 +8,62 @@
 import Foundation
 import OSLog
 
-struct Stage2Result: Sendable {
-    let segmentsA: [AdSegment] // From model A (70B)
-    let segmentsB: [AdSegment] // From model B (120B)
+/// Sendable data transfer object for ad segment data (used for cross-isolation boundary transfer)
+struct AdSegmentData: Sendable {
+    let startTime: TimeInterval
+    let endTime: TimeInterval
+    let confidence: Double
+    let label: String
+    let adType: String?
+    let source: String?
+    let firstSentenceId: Int?
+    let lastSentenceId: Int?
+    let firstSentenceText: String?
+    let lastSentenceText: String?
+    let evidenceExcerpt: String?
+    
+    /// Convert to AdSegment model (must be called on MainActor if inserting into SwiftData context)
+    func toAdSegment() -> AdSegment {
+        AdSegment(
+            startTime: startTime,
+            endTime: endTime,
+            confidence: confidence,
+            label: label,
+            adType: adType,
+            source: source,
+            firstSentenceId: firstSentenceId,
+            lastSentenceId: lastSentenceId,
+            firstSentenceText: firstSentenceText,
+            lastSentenceText: lastSentenceText,
+            evidenceExcerpt: evidenceExcerpt
+        )
+    }
+    
+    /// Create a copy with an updated source
+    func withSource(_ newSource: String) -> AdSegmentData {
+        AdSegmentData(
+            startTime: startTime,
+            endTime: endTime,
+            confidence: confidence,
+            label: label,
+            adType: adType,
+            source: newSource,
+            firstSentenceId: firstSentenceId,
+            lastSentenceId: lastSentenceId,
+            firstSentenceText: firstSentenceText,
+            lastSentenceText: lastSentenceText,
+            evidenceExcerpt: evidenceExcerpt
+        )
+    }
 }
 
-final class Stage2RefineService {
-    static let shared = Stage2RefineService()
+struct Stage2Result: Sendable {
+    let segmentsA: [AdSegmentData] // From model A (70B)
+    let segmentsB: [AdSegmentData] // From model B (120B)
+}
+
+final class Stage2RefineService: Sendable {
+    nonisolated static let shared = Stage2RefineService()
     private let logger = Logger(subsystem: "com.jonasgunklach.CleanCast", category: "Stage2Refine")
     private let groqChatService = GroqChatService.shared
     
@@ -35,7 +84,7 @@ final class Stage2RefineService {
         apiKey: String
     ) async throws -> Stage2Result {
         
-        logger.info("🔬 [Stage 2] Refining context (\(candidateText.count) chars) with 70B & 120B (Mixtral)")
+        logger.info("🔬 [Stage 2] Refining context (\(candidateText.count) chars) with LLama 70B & OpenAI OSS 120B")
         
         async let resultA = extractSegments(text: candidateText, sentences: sentences, model: model70B, apiKey: apiKey, source: "70b")
         async let resultB = extractSegments(text: candidateText, sentences: sentences, model: model120B, apiKey: apiKey, source: "120b")
@@ -46,31 +95,39 @@ final class Stage2RefineService {
         return Stage2Result(segmentsA: segmentsA, segmentsB: segmentsB)
     }
     
-    private func extractSegments(text: String, sentences: [IndexedSentence], model: String, apiKey: String, source: String) async throws -> [AdSegment] {
+    private func extractSegments(text: String, sentences: [IndexedSentence], model: String, apiKey: String, source: String) async throws -> [AdSegmentData] {
+        // Build text with IDs
+        var labeledText = ""
+        for sentence in sentences {
+            labeledText += "[\(sentence.id)] \(sentence.text)\n"
+        }
+        
         let prompt = """
         You are a precise ad detection engine.
-        Analyze the following text. Identify start/end sentences of advertisements.
+        Analyze the following transcript where each sentence is prefixed with an ID [x].
+        Identify start/end sentence IDs of advertisements.
         
         Categories:
         - "paid_ad" (Sponsors, external companies)
         - "self_promo" (Merch, Patreon, live shows)
         - "cross_promo" (Other podcasts)
-        - "product_mention" (Organic discussion - use caution)
         
-        Strictly output JSON:
+        Strictly output JSON. Return a list of segments defined by their start_id and end_id (inclusive).
+        
+        Format:
         {
           "segments": [
             {
               "type": "paid_ad",
-              "first_sentence": "exact text...",
-              "last_sentence": "exact text...",
+              "start_id": 12,
+              "end_id": 15,
               "confidence": 0.9
             }
           ]
         }
         
-        Text:
-        \(text.prefix(12000))
+        Transcript:
+        \(labeledText)
         """
         
         do {
@@ -82,27 +139,28 @@ final class Stage2RefineService {
         }
     }
     
-    private func parseAndValidate(jsonString: String, sentences: [IndexedSentence], source: String) -> [AdSegment] {
+    private func parseAndValidate(jsonString: String, sentences: [IndexedSentence], source: String) -> [AdSegmentData] {
         guard let data = jsonString.data(using: .utf8),
               let response = try? JSONDecoder().decode(Stage2Response.self, from: data),
               let rawSegments = response.segments else {
             return []
         }
         
-        var validated: [AdSegment] = []
+        var validated: [AdSegmentData] = []
+        
+        // create ID lookup map for O(1) access
+        let sentenceMap = Dictionary(uniqueKeysWithValues: sentences.map { ($0.id, $0) })
         
         for raw in rawSegments {
-            // Find best matching sentences in the provided list
-            // We use fuzzy matching or exact matching against the `sentences` list
-            
-            if let startNode = findBestSentenceMatch(query: raw.first_sentence, sentences: sentences),
-               let endNode = findBestSentenceMatch(query: raw.last_sentence, sentences: sentences) {
+            // Validate IDs exist in our window
+            if let startNode = sentenceMap[raw.start_id],
+               let endNode = sentenceMap[raw.end_id] {
                 
                 let startTime = startNode.start
                 let endTime = endNode.end
                 
                 if endTime > startTime {
-                    validated.append(AdSegment(
+                    validated.append(AdSegmentData(
                         startTime: startTime,
                         endTime: endTime,
                         confidence: raw.confidence,
@@ -122,20 +180,8 @@ final class Stage2RefineService {
         return validated
     }
     
-    private func findBestSentenceMatch(query: String, sentences: [IndexedSentence]) -> IndexedSentence? {
-        // Simple containment or equality check
-        // In product, use Levenshtein or specialized fuzzy matcher
-        let cleanedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        
-        // 1. Exact match
-        if let exact = sentences.first(where: { $0.text.lowercased().contains(cleanedQuery) || cleanedQuery.contains($0.text.lowercased()) }) {
-            return exact
-        }
-        
-        // 2. Fallback: first match with significant overlap
-        // (Simplified for now)
-        return nil
-    }
+    // findBestSentenceMatch is no longer needed but we can keep it private or remove it
+    // removing unused function
 }
 
 // Helper structures
@@ -149,8 +195,8 @@ struct IndexedSentence: Sendable {
 private struct Stage2Response: Codable {
     struct RawSegment: Codable {
         let type: String
-        let first_sentence: String
-        let last_sentence: String
+        let start_id: Int
+        let end_id: Int
         let confidence: Double
     }
     let segments: [RawSegment]?

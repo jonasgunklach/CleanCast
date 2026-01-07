@@ -8,7 +8,7 @@
 import Foundation
 import OSLog
 
-final class GroqWhisperService {
+final class GroqWhisperService: Sendable {
     static let shared = GroqWhisperService()
     
     private let logger = Logger(subsystem: "com.jonasgunklach.CleanCast", category: "GroqWhisper")
@@ -32,11 +32,11 @@ final class GroqWhisperService {
     }
     
     private init() {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 300 // 5 minutes (for large files)
-        config.timeoutIntervalForResource = 300
-        config.waitsForConnectivity = true
-        // Force TCP to avoid QUIC/UDP "Message too long" errors in Simulator
+        // Use ephemeral session to prevent stale connection/local endpoint errors
+        // This is crucial for the Simulator's flaky network stack
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 30.0
+        config.timeoutIntervalForResource = 60.0
         self.session = URLSession(configuration: config)
     }
     
@@ -96,7 +96,9 @@ final class GroqWhisperService {
         request.httpBody = body
         
         let fileSizeMB = Double(audioData.count) / (1024 * 1024)
-        logger.info("📤 [Whisper] Sending \(String(format: "%.1f", fileSizeMB))MB audio to Groq API")
+
+        // Log silenced per user request (too spammy with chunking)
+        // logger.debug("📤 [Whisper] Sending \(String(format: "%.1f", fileSizeMB))MB audio to Groq API")
         
         // Check file size limit (Groq API typically has ~25MB limit)
         if fileSizeMB > 25 {
@@ -156,8 +158,9 @@ final class GroqWhisperService {
                     SegmentTimestamp(start: seg.start, end: seg.end, text: seg.text)
                 }
                 
-                let totalApiTime = Date().timeIntervalSince(apiCallStart)
-                logger.info("[Whisper] \(segments.count) segments in \(String(format: "%.1f", totalApiTime))s")
+                let _ = Date().timeIntervalSince(apiCallStart)
+                // Log silenced per user request (too spammy with chunking)
+                // logger.info("[Whisper] \(segments.count) segments in \(String(format: "%.1f", totalApiTime))s")
                 
                 return TranscriptionResult(text: whisperResponse.text, segments: segments)
                 

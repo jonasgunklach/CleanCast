@@ -14,8 +14,8 @@ struct Stage1Result: Sendable {
     let rawDecisions: [Int: Bool] // Full map for debug
 }
 
-final class Stage1CoarseService {
-    static let shared = Stage1CoarseService()
+final class Stage1CoarseService: Sendable {
+    nonisolated static let shared = Stage1CoarseService()
     
     private let logger = Logger(subsystem: "com.jonasgunklach.CleanCast", category: "Stage1Coarse")
     private let groqChatService = GroqChatService.shared
