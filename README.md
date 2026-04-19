@@ -1,9 +1,5 @@
 <div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="Screenshots/icon.png">
-    <source media="(prefers-color-scheme: light)" srcset="Screenshots/icon.png">
-    <img src="Screenshots/cleancast-icon.png" alt="CleanCast Logo" width="120">
-  </picture>
+  <img src="Screenshots/cleancast-icon.png" alt="CleanCast Logo" width="120">
 
 # CleanCast
 
