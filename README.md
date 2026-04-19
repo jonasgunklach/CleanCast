@@ -1,4 +1,13 @@
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="Screenshots/icon.png">
+    <source media="(prefers-color-scheme: light)" srcset="Screenshots/icon.png">
+    <img src="Screenshots/cleancast-icon.png" alt="CleanCast Logo" width="120">
+  </picture>
+
 # CleanCast
+
+</div>
 
 **CleanCast** is an iOS podcast app that automatically detects and skips ads using AI-powered transcription and analysis — so you can listen uninterrupted.
 
