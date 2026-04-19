@@ -2,6 +2,7 @@
 build_log.txt
 build_log_2.txt
 build.txt
+build.log
 *.log
 
 # Xcode
